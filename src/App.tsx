@@ -162,8 +162,12 @@ function GoLinksApp() {
   };
 
   const handleResetSeeds = async () => {
-    await resetSeeds();
-    showToast('Reset seed shortcuts to initial corporate configuration', 'info');
+    try {
+      await resetSeeds();
+      showToast('Reset seed shortcuts to initial corporate configuration', 'info');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to reset shortcuts', 'error');
+    }
   };
 
   return (

@@ -54,8 +54,12 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
 
   const handleResetLogs = async () => {
     if (confirm('Reset audit log history to seed events?')) {
-      await resetAuditLogs();
-      await fetchLogs();
+      try {
+        await resetAuditLogs();
+        await fetchLogs();
+      } catch (err) {
+        alert(err instanceof Error ? err.message : 'Failed to reset audit log');
+      }
     }
   };
 
