@@ -1,0 +1,6 @@
+{
+  "name": "GoLinks - Internal Enterprise URL Shortcuts",
+  "description": "Fast, memorable internal URL shortcut service for company LAN employees. Create, manage, and instantly redirect go/<shortname> links.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
