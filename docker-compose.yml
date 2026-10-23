@@ -1,0 +1,27 @@
+services:
+  golinks:
+    build: .
+    image: golinks:latest
+    container_name: golinks
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Inside the container the app always listens on 8080 as a non-root user;
+      # HOST_PORT (default 80) is what users hit on the LAN.
+      PORT: 8080
+      DB_PATH: /data/golinks.db
+      STATIC_DIR: /app/dist
+    ports:
+      - "${HOST_PORT:-80}:8080"
+    volumes:
+      - golinks-data:/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  golinks-data:

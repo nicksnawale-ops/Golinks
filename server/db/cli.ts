@@ -32,7 +32,7 @@ async function main() {
     case 'backup': {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const target = path.resolve(arg || path.join(path.dirname(config.dbPath), 'backups', `golinks-${stamp}.db`));
-      fs.mkdirSync(path.dirname(target), { recursive: true });
+      fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o750 });
       const db = openDatabase(config.dbPath, { seedSampleData: false });
       await db.backup(target);
       db.close();

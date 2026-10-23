@@ -3,6 +3,10 @@ import { createApp } from './app';
 import { loadConfig } from './config';
 import { openDatabase } from './db/database';
 
+// `--port=3001` overrides PORT from .env (used by `npm run dev:server`).
+const portArg = process.argv.find((a) => a.startsWith('--port='));
+if (portArg) process.env.PORT = portArg.split('=')[1];
+
 const config = loadConfig();
 const db = openDatabase(config.dbPath, {
   seedSampleData: config.seedSampleData,

@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "dev:server": "tsx watch --env-file-if-exists=.env server/index.ts",
+    "dev:server": "tsx watch server/index.ts --port=3001",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
     "build:server": "esbuild server/index.ts server/db/cli.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outdir=dist-server --out-extension:.js=.js",
