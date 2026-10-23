@@ -6,3 +6,8 @@ coverage/
 *.log
 .env*
 !.env.example
+dist-server/
+data/
+*.db
+*.db-wal
+*.db-shm

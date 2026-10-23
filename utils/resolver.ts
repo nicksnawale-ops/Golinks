@@ -1,1 +1,1 @@
-export * from '../src/utils/resolver';
+export * from '../shared/resolver';
