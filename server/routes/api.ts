@@ -1,12 +1,14 @@
 import express, { Router } from 'express';
-import { listUsers } from '../repositories/userRepository';
 import { queryAuditLog } from '../repositories/auditRepository';
-import { getLinkById, recordLinkClick } from '../repositories/linkRepository';
-import { requireActor, requireAdmin } from '../auth';
+import { dismissMissingLink, getDailyClicks, listMissingLinks, recordClickEvent } from '../repositories/insightsRepository';
+import { recordLinkClick } from '../repositories/linkRepository';
+import { currentActor, requireActor, requireAdmin, sameOriginGuard } from '../auth';
 import { ServerConfig } from '../config';
 import { DB } from '../db/database';
 import { resetAuditLog, resetToSampleLinks } from '../db/seed';
 import { badRequest, forbidden, notFound } from '../errors';
+import { authRouter } from './auth';
+import { usersRouter } from './users';
 import { parseCreateLinkInput, parseUpdateLinkInput } from '../services/linkInput';
 import {
   checkShortNameAvailable,
@@ -14,6 +16,7 @@ import {
   deleteLink,
   getCategories,
   getStats,
+  getVisibleLink,
   importLinks,
   LinkQuery,
   queryLinks,
@@ -52,7 +55,11 @@ function rawQueryString(originalUrl: string): string {
 
 export function apiRouter(db: DB, config: ServerConfig): Router {
   const router = Router();
+  router.use(sameOriginGuard);
   router.use(express.json({ limit: '5mb' }));
+
+  router.use('/auth', authRouter(db, config));
+  router.use('/users', usersRouter(db));
 
   router.get('/health', (_req, res) => {
     db.prepare('SELECT 1').get();
@@ -61,12 +68,12 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
 
   // ---- Links ---------------------------------------------------------------
   router.get('/links', (req, res) => {
-    res.json(queryLinks(db, parseLinkQuery(req.query)));
+    res.json(queryLinks(db, parseLinkQuery(req.query), currentActor(res)));
   });
 
   router.get('/links/validate', (req, res) => {
     const shortName = str(req.query.shortName) ?? '';
-    res.json(checkShortNameAvailable(db, shortName, str(req.query.excludeId)));
+    res.json(checkShortNameAvailable(db, shortName, str(req.query.excludeId), currentActor(res)));
   });
 
   router.post('/links', (req, res) => {
@@ -76,9 +83,16 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
   });
 
   router.get('/links/:id', (req, res) => {
-    const link = getLinkById(db, req.params.id);
+    const link = getVisibleLink(db, req.params.id, currentActor(res));
     if (!link) throw notFound(`Link with ID "${req.params.id}" was not found.`);
     res.json(link);
+  });
+
+  router.get('/links/:id/clicks', (req, res) => {
+    const link = getVisibleLink(db, req.params.id, currentActor(res));
+    if (!link) throw notFound(`Link with ID "${req.params.id}" was not found.`);
+    const days = Math.min(Math.max(Number.parseInt(str(req.query.days) ?? '30', 10) || 30, 1), 365);
+    res.json(getDailyClicks(db, days, [link.id]));
   });
 
   router.put('/links/:id', (req, res) => {
@@ -93,8 +107,14 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
   });
 
   router.post('/links/:id/click', (req, res) => {
-    if (!getLinkById(db, req.params.id)) throw notFound(`Link with ID "${req.params.id}" was not found.`);
-    recordLinkClick(db, req.params.id);
+    const actor = requireActor(res);
+    const link = getVisibleLink(db, req.params.id, actor);
+    if (!link) throw notFound(`Link with ID "${req.params.id}" was not found.`);
+    const at = new Date().toISOString();
+    db.transaction(() => {
+      recordLinkClick(db, link.id, at);
+      recordClickEvent(db, link.id, actor.id, at);
+    })();
     res.status(204).end();
   });
 
@@ -106,13 +126,14 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
   router.get('/resolve/*', (req, res) => {
     const path = (req.params as Record<string, string>)[0] ?? '';
     const query = rawQueryString(req.originalUrl);
-    const result = resolveGoLink(db, query ? `${path}?${query}` : path);
+    const result = resolveGoLink(db, query ? `${path}?${query}` : path, { viewer: currentActor(res) });
     const status = result.found ? 200 : result.isDisabled ? 410 : 404;
     res.status(status).set('Cache-Control', 'no-store').json(result);
   });
 
   // ---- Import / export ------------------------------------------------------
   router.get('/export', (_req, res) => {
+    requireAdmin(res);
     const stamp = new Date().toISOString().slice(0, 10);
     res
       .set('Content-Disposition', `attachment; filename="golinks-export-${stamp}.json"`)
@@ -130,11 +151,7 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
     res.json(importLinks(db, items, mode, actor));
   });
 
-  // ---- Users, audit, stats --------------------------------------------------
-  router.get('/users', (_req, res) => {
-    res.json(listUsers(db));
-  });
-
+  // ---- Audit, stats, insights -----------------------------------------------
   router.get('/audit', (req, res) => {
     requireAdmin(res);
     const limit = str(req.query.limit);
@@ -151,7 +168,19 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
   });
 
   router.get('/stats', (_req, res) => {
-    res.json(getStats(db));
+    res.json(getStats(db, currentActor(res)));
+  });
+
+  router.get('/insights/missing', (req, res) => {
+    requireAdmin(res);
+    const limit = Math.min(Math.max(Number.parseInt(str(req.query.limit) ?? '50', 10) || 50, 1), 500);
+    res.json(listMissingLinks(db, limit));
+  });
+
+  router.delete('/insights/missing/:shortName', (req, res) => {
+    requireAdmin(res);
+    if (!dismissMissingLink(db, req.params.shortName)) throw notFound('Not in the missing-links list.');
+    res.status(204).end();
   });
 
   // ---- Destructive admin actions (disabled unless ALLOW_DATA_RESET=true) ----
