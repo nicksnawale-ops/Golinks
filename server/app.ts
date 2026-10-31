@@ -27,11 +27,15 @@ export function createApp(db: DB, config: ServerConfig) {
   app.use((_req, res, next) => {
     res.set('X-Content-Type-Options', 'nosniff');
     res.set('Referrer-Policy', 'no-referrer-when-downgrade');
+    res.set('X-Frame-Options', 'SAMEORIGIN');
     next();
   });
 
+  // Identity from the session cookie, for both the API and go-link redirects (private links).
+  app.use(actorMiddleware(db));
+
   // 1. REST API
-  app.use('/api', actorMiddleware(db), apiRouter(db, config));
+  app.use('/api', apiRouter(db, config));
 
   // 2. Built static assets (hashed filenames → long cache). Missing /assets/* files are a plain 404.
   const indexPath = path.join(config.staticDir, 'index.html');
