@@ -67,7 +67,7 @@ export const LoginPage: React.FC = () => {
 
       {/* Sign-in */}
       <main className="flex-1 flex items-start lg:items-center justify-center px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
-        <div className="gl-login-card w-full max-w-[400px]">
+        <div className="gl-login-card w-full max-w-[400px] flex flex-col">
           <h1 className="font-['Plus_Jakarta_Sans'] text-[1.75rem] leading-tight font-bold tracking-tight text-[#18213A] dark:text-white">
             Sign in
           </h1>
@@ -84,7 +84,8 @@ export const LoginPage: React.FC = () => {
                 id="login-email"
                 type="email"
                 autoComplete="username"
-                autoFocus
+                // Desktop only: on phones, focusing would scroll past the demo accounts and open the keyboard.
+                autoFocus={typeof window !== 'undefined' && window.matchMedia?.('(min-width: 1024px)').matches}
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -137,12 +138,14 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
+          {/* On phones the demo accounts come first, so they're visible without scrolling. */}
           {demoAccounts.length > 0 && (
-            <section className="mt-8" aria-labelledby="demo-heading">
+            <section className="order-first mb-8 lg:order-none lg:mb-0 lg:mt-8" aria-labelledby="demo-heading">
               <div className="flex items-center gap-3">
                 <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
                 <h2 id="demo-heading" className="text-sm font-medium text-slate-500 dark:text-slate-400">
-                  Or try a demo account
+                  <span className="lg:hidden">Try a demo account</span>
+                  <span className="hidden lg:inline">Or try a demo account</span>
                 </h2>
                 <span className="h-px flex-1 bg-slate-200 dark:bg-slate-800" />
               </div>
