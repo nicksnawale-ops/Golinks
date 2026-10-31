@@ -149,6 +149,10 @@ All settings come from environment variables (or `.env`). See [`.env.example`](.
 | `ALLOW_DATA_RESET` | `false` | Enables the admin "Reset sample shortcuts" / audit-reset buttons. Leave `false` in production. |
 | `TRUST_PROXY` | `false` | Set `true` behind a reverse proxy. |
 | `LOG_REQUESTS` | `true` | One log line per request, including the 302 target. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | *(empty)* | First admin account, created or promoted at start-up. The password is only applied while the account has none. Remove `ADMIN_PASSWORD` after first sign-in. |
+| `SESSION_TTL_HOURS` | `12` | How long a sign-in lasts. |
+| `COOKIE_SECURE` | `false` | Set `true` only when served over HTTPS. |
+| `CLICK_RETENTION_DAYS` | `365` | Days of per-click history kept for trend charts (total counts are never pruned). |
 | `HOST_PORT` | `80` | Docker only: host port published by compose. |
 | `VITE_API_PROXY_TARGET` | `http://localhost:3001` | Dev only: where Vite proxies `/api`. |
 | `VITE_API_BASE_URL` | *(empty)* | Build-time: API origin if not same-origin. |
@@ -158,7 +162,10 @@ All settings come from environment variables (or `.env`). See [`.env.example`](.
 Schema (see `server/db/migrations.ts`):
 
 - `links`: one row per go link. `UNIQUE INDEX idx_links_short_name_lower ON links(lower(short_name))` guarantees case-insensitive uniqueness.
-- `users`: directory users (currently the four mock identities from the UI).
+- `users`: people who can sign in (scrypt-hashed `password_hash`, `is_active`, `last_login_at`). Users without a password cannot sign in.
+- `sessions`: active sign-ins. Only a SHA-256 of each session token is stored; expired rows are pruned daily.
+- `not_found_requests`: go names people typed that matched no link, with counts (the "Most requested missing links" card).
+- `click_events`: one row per redirect, for 30-day trend charts. Rows are deleted with their link and pruned after `CLICK_RETENTION_DAYS`.
 - `audit_log`: every create / edit / delete / (de)activate / owner reassignment / import, written in the same transaction as the change.
 - `schema_migrations`: applied migration versions.
 
@@ -300,25 +307,34 @@ Redirects are sent with `Cache-Control: private, no-store`, so a changed target 
 
 ## REST API
 
-All endpoints are JSON. Errors look like `{ "error": "message" }`. Writes require the `X-GoLinks-User-Id` header (see below).
+All endpoints are JSON. Errors look like `{ "error": "message" }`. Identity comes from the `golinks_session` cookie set by `POST /api/auth/login` (see below). Private links are invisible (404) to everyone except their owner and admins, in every endpoint and in redirects.
 
 | Method | Path | Who | Description |
 | --- | --- | --- | --- |
 | GET | `/api/health` | any | Liveness/DB check |
+| POST | `/api/auth/login` | any | `{ email, password }` → user, sets the session cookie. 10 failures per IP + email in 15 min → 429 |
+| POST | `/api/auth/logout` | any | Ends the session |
+| GET | `/api/auth/me` | user | Current user, or 401 |
+| POST | `/api/auth/password` | user | `{ currentPassword, newPassword }`; signs out the user's other sessions |
+| GET / POST | `/api/users` | admin | List users / create `{ name, email, role, department, password }` |
+| PUT | `/api/users/:id` | admin | `{ name?, role?, department?, isActive? }`. The last admin who can sign in can't be demoted or deactivated |
+| POST | `/api/users/:id/password` | admin | `{ password }`; signs that user out everywhere |
 | GET | `/api/links` | any | List. Query: `query`, `category`, `visibility`, `isActive`, `shortName`, `sortBy` (`clicks`/`recent`/`name`/`lastAccessed`), `sortOrder` |
 | POST | `/api/links` | user | Create `{ shortName, targetUrl, description?, category?, owner?, visibility?, isActive?, tags? }` → 201 |
 | GET | `/api/links/validate?shortName=&excludeId=` | any | `{ valid, error? }` (format, reserved and uniqueness checks) |
 | GET | `/api/links/:id` | any | One link |
 | PUT | `/api/links/:id` | owner/admin | Partial update |
 | DELETE | `/api/links/:id` | owner/admin | → 204 |
-| POST | `/api/links/:id/click` | any | Record a click |
+| POST | `/api/links/:id/click` | user | Record a click |
+| GET | `/api/links/:id/clicks?days=30` | any | Clicks per UTC day (zero-filled) with `uniqueUsers` |
 | GET | `/api/resolve/<path>?<query>` | any | Resolve without redirecting (200 found, 404 not found, 410 disabled); records a click on success |
 | GET | `/api/categories` | any | Category list |
-| GET | `/api/users` | any | Directory users |
 | GET | `/api/audit` | admin | Query: `action`, `actor`, `shortName`, `dateFrom`, `dateTo`, `limit` |
 | POST | `/api/import` | admin | `[...links]` or `{ links: [...], mode: "upsert" \| "create" }` → `{ imported, created, updated, skipped[] }` |
-| GET | `/api/export` | any | All links as a JSON download |
-| GET | `/api/stats` | any | Totals, per-category counts, top and recent links |
+| GET | `/api/export` | admin | All links as a JSON download |
+| GET | `/api/stats` | any | Totals, per-category counts, top and recent links, `dailyClicks` (30 days), all limited to links the caller can see |
+| GET | `/api/insights/missing?limit=` | admin | Most requested go names that don't exist |
+| DELETE | `/api/insights/missing/:shortName` | admin | Dismiss one |
 | POST | `/api/reset`, `/api/audit/reset`; DELETE `/api/audit` | admin | Only when `ALLOW_DATA_RESET=true` |
 
 Server-side validation: shortName is 2–50 characters of `a-z 0-9 - _ /` (normalised to lowercase, with a leading `go/` stripped), not reserved, no `//`, and unique ignoring case. `targetUrl` must be a valid `http://` or `https://` URL (with `%s` / `{query}` placeholders allowed), at most 2048 characters. Field types and lengths are also enforced.
@@ -326,19 +342,28 @@ Server-side validation: shortName is 2–50 characters of `a-z 0-9 - _ /` (norma
 Example:
 
 ```bash
-curl -X POST http://go/api/links \
-  -H 'Content-Type: application/json' -H 'X-GoLinks-User-Id: user_admin' \
+curl -c jar -X POST http://go/api/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"admin@yourcompany.local","password":"..."}'
+curl -b jar -X POST http://go/api/links -H 'Content-Type: application/json' \
   -d '{"shortName":"standup","targetUrl":"https://meet.company.internal/standup","category":"Engineering"}'
 ```
 
 ## Identity & permissions
 
-The UI still uses the **mock user switcher** that came with the prototype (four users, seeded into the `users` table). The selected user's id is sent as `X-GoLinks-User-Id`, and the server applies the same rules as the UI:
+Everyone signs in with an email and password. Sign-in sets an `httpOnly`, `SameSite=Lax` session cookie; the server looks the session up on every request, so the browser can't fake who it is.
 
-- **Admin**: manages any link, reassigns owners, views the audit log, imports.
-- **Employee**: creates links (always owned by themselves) and edits/deletes only their own.
+**First admin:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and start the server. It creates that account (or promotes it to an active admin) and logs a warning at start-up if no admin can sign in. Sign in, change the password from the account menu, and remove `ADMIN_PASSWORD` from `.env`.
 
-⚠️ **This header is self-asserted.** Anyone on the LAN can send any user id. It gives you accountability among cooperative users, not security. Before relying on roles, put the app behind your SSO (for example a reverse proxy doing OIDC/Kerberos that injects a trusted user header), then change `actorMiddleware` in `server/auth.ts` to read that header and populate `users` from your directory.
+**Adding people:** admins use the **Users** page to add accounts with an initial password, change roles, reset passwords and deactivate leavers. Deactivating or resetting a password signs that person out immediately; their links keep working. The sample identities seeded with the sample links have no password and can't sign in unless an admin sets one.
+
+- **Admin**: manages any link and user, sees private links, reassigns owners, views the audit log and missing-links report, imports and exports.
+- **Employee**: creates links (always owned by themselves), edits/deletes only their own, and sees public links plus their own private ones.
+
+**Go-link redirects stay frictionless:** public links redirect for anyone on the LAN, signed in or not. Private links redirect only for their owner and admins (signed in on the same `go` host); for everyone else they behave as if they don't exist.
+
+**Cross-site protection:** state-changing API calls whose `Origin` doesn't match the `Host` are rejected. Behind a reverse proxy, forward the original `Host` header (nginx: `proxy_set_header Host $host;`).
+
+**Later:** to sign in with Active Directory instead of local passwords, add an LDAP check in `server/routes/auth.ts` (`POST /login`) that creates or updates the local user on success; sessions, roles and everything else stay as they are.
 
 ## Tests
 
@@ -347,4 +372,4 @@ npm test
 ```
 
 - `tests/resolver.test.ts` covers the matching rules: case-insensitivity, path passthrough, longest prefix, `%s`, query/hash passthrough, inactive links, not-found and reserved names, and validation. It also runs the original `src/utils/resolver.test.ts` self-tests.
-- `tests/server.test.ts` starts the real Express app on an in-memory database and checks the 302 `Location` headers, click counting (GET vs HEAD), the 404/410 SPA fallbacks, that `/api`, `/assets` and app routes are never treated as go links, CRUD + RBAC + audit, import/export, stats and malformed input.
+- `tests/server.test.ts` starts the real Express app on an in-memory database and checks the 302 `Location` headers, click counting (GET vs HEAD), the 404/410 SPA fallbacks, that `/api`, `/assets` and app routes are never treated as go links, CRUD + RBAC + audit, import/export, stats and malformed input, plus sign-in and sessions, rate limiting, cross-site blocking, user management, private-link visibility, the missing-links report and click history.
