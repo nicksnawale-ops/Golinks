@@ -4,6 +4,7 @@ import Database from 'better-sqlite3';
 import { runMigrations } from './migrations';
 import { BootstrapAdmin } from '../config';
 import { countActiveAdminsWithPassword } from '../repositories/userRepository';
+import { applyDemoMode } from './demo';
 import { ensureBootstrapAdmin, seedSampleLinks, seedSampleUsers } from './seed';
 
 export type DB = Database.Database;
@@ -13,6 +14,8 @@ export interface OpenDatabaseOptions {
   seedSampleData?: boolean;
   /** Create/activate this admin account at startup (from ADMIN_EMAIL / ADMIN_PASSWORD). */
   bootstrapAdmin?: BootstrapAdmin | null;
+  /** DEMO_MODE: give demo accounts known passwords (or retract them when false). */
+  demoMode?: boolean;
   log?: (message: string) => void;
 }
 
@@ -43,6 +46,7 @@ export function openDatabase(dbPath: string, options: OpenDatabaseOptions = {}):
     log(`Seeded ${count} sample links`);
   }
 
+  applyDemoMode(db, options.demoMode === true).forEach(log);
   if (options.bootstrapAdmin) log(ensureBootstrapAdmin(db, options.bootstrapAdmin));
   if (countActiveAdminsWithPassword(db) === 0) {
     log('WARNING: no admin can sign in. Set ADMIN_EMAIL and ADMIN_PASSWORD in .env and restart.');

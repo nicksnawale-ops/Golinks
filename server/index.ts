@@ -13,6 +13,7 @@ const config = loadConfig();
 const db = openDatabase(config.dbPath, {
   seedSampleData: config.seedSampleData,
   bootstrapAdmin: config.bootstrapAdmin,
+  demoMode: config.demoMode,
   log: (msg) => console.log(`[db] ${msg}`),
 });
 

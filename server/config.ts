@@ -35,6 +35,8 @@ export interface ServerConfig {
   clickRetentionDays: number;
   /** First admin account, created/activated at startup when ADMIN_EMAIL + ADMIN_PASSWORD are set. */
   bootstrapAdmin: BootstrapAdmin | null;
+  /** Demo/evaluation mode: demo accounts get known passwords and are listed on the sign-in page. */
+  demoMode: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -58,5 +60,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       adminEmail && adminPassword
         ? { email: adminEmail, password: adminPassword, name: env.ADMIN_NAME?.trim() || 'GoLinks Administrator' }
         : null,
+    demoMode: bool(env.DEMO_MODE, false),
   };
 }

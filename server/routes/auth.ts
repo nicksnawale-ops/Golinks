@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { currentActor, LoginRateLimiter, requireActor, SESSION_COOKIE, sessionCookieOptions } from '../auth';
 import { ServerConfig } from '../config';
 import { DB } from '../db/database';
+import { getDemoAccounts } from '../db/demo';
 import { badRequest, unauthorized } from '../errors';
 import { createSession, deleteSession, deleteUserSessions } from '../repositories/sessionRepository';
 import {
@@ -18,6 +19,12 @@ const str = (v: unknown) => (typeof v === 'string' ? v : '');
 export function authRouter(db: DB, config: ServerConfig): Router {
   const router = Router();
   const limiter = new LoginRateLimiter();
+
+  // Sign-in page asks whether to show demo accounts. Only ever returns credentials in demo mode.
+  router.get('/demo', (_req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json(config.demoMode ? { enabled: true, accounts: getDemoAccounts(db) } : { enabled: false, accounts: [] });
+  });
 
   router.post('/login', (req, res) => {
     const email = str(req.body?.email).trim();
