@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from '../../shared/uuid';
 import type Database from 'better-sqlite3';
 import { AuditAction, AuditFilterParams, AuditLogEntry } from '../../shared/types/audit';
 import { User, UserRole } from '../../shared/types/auth';

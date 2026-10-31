@@ -66,6 +66,12 @@ export function listLinks(db: Database.Database): GoLink[] {
   return (db.prepare('SELECT * FROM links').all() as LinkRow[]).map(rowToLink);
 }
 
+export function listLinkCategories(db: Database.Database): string[] {
+  return (db.prepare('SELECT DISTINCT category FROM links ORDER BY category').all() as Array<{ category: string }>).map(
+    (r) => r.category
+  );
+}
+
 export function getLinkById(db: Database.Database, id: string): GoLink | null {
   const row = db.prepare('SELECT * FROM links WHERE id = ?').get(id) as LinkRow | undefined;
   return row ? rowToLink(row) : null;

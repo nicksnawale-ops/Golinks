@@ -19,6 +19,18 @@ export class ApiError extends Error {
 export const SERVER_UNREACHABLE_MESSAGE =
   "Can't reach the GoLinks server. This address only serves the web pages, so signing in and saving links won't work here.";
 
+/**
+ * Where API calls go. "server" (default): the GoLinks server at /api. "browser": the demo backend
+ * that runs inside the page (src/demo), for static hosts with no server. Vercel deployments
+ * (*.vercel.app) use the browser backend automatically; VITE_BACKEND=server|browser overrides.
+ */
+export function usesBrowserBackend(): boolean {
+  const configured = (import.meta.env.VITE_BACKEND as string | undefined)?.toLowerCase();
+  if (configured === 'browser') return true;
+  if (configured === 'server') return false;
+  return typeof window !== 'undefined' && /\.vercel\.app$/i.test(window.location.hostname);
+}
+
 export type QueryParams = Record<string, string | number | boolean | undefined | null>;
 
 export function buildQuery(params?: QueryParams): string {
@@ -41,6 +53,19 @@ export async function apiRequest<T>(
   path: string,
   options: { method?: string; body?: unknown; allowStatus?: number[]; raw?: boolean; silentAuth?: boolean } = {}
 ): Promise<T> {
+  if (usesBrowserBackend()) {
+    const { browserApiRequest } = await import('../demo/browserApi');
+    const res = await browserApiRequest(options.method || 'GET', path, options.body);
+    if (res.status === 401 && !options.silentAuth) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+    if (res.raw !== undefined) return res.raw as T;
+    const ok = res.status >= 200 && res.status < 300;
+    if (!ok && !options.allowStatus?.includes(res.status)) {
+      const message = (res.data as { error?: string } | undefined)?.error || `Request failed (${res.status})`;
+      throw new ApiError(res.status, message, res.data);
+    }
+    return res.data as T;
+  }
+
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
