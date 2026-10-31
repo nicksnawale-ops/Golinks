@@ -22,7 +22,8 @@ export default defineConfig(({mode}) => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
       proxy: {
-        '/api': {target: apiTarget, changeOrigin: true},
+        // Keep the browser's Host header: the API's same-origin (CSRF) check compares it with Origin.
+        '/api': {target: apiTarget, changeOrigin: false},
       },
     },
   };
