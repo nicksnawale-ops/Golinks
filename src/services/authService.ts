@@ -43,6 +43,16 @@ export async function getDemoAccounts(): Promise<DemoAccount[]> {
   }
 }
 
+/** True when the GoLinks server answers at this address. */
+export async function checkServer(): Promise<boolean> {
+  try {
+    await apiRequest<{ status: string }>('/health', { silentAuth: true });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function logout(): Promise<void> {
   await apiRequest<void>('/auth/logout', { method: 'POST', silentAuth: true });
 }

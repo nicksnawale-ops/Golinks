@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Check, Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { RouteSwitchboard } from '../components/RouteSwitchboard';
 import { useAuth } from '../context/AuthContext';
-import { DemoAccount, getDemoAccounts } from '../services/authService';
+import { checkServer, DemoAccount, getDemoAccounts } from '../services/authService';
 
 const inputClass =
   'w-full h-12 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-[15px] text-[#18213A] dark:text-slate-100 placeholder:text-slate-400 transition-colors focus:outline-none focus:border-[#3D6BFF] focus:ring-4 focus:ring-[#3D6BFF]/15';
@@ -16,8 +16,13 @@ export const LoginPage: React.FC = () => {
   const [submitting, setSubmitting] = useState<string | null>(null); // 'form' or a demo email
   const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>([]);
 
+  const [serverDown, setServerDown] = useState(false);
+
   useEffect(() => {
-    getDemoAccounts().then(setDemoAccounts);
+    checkServer().then((ok) => {
+      setServerDown(!ok);
+      if (ok) getDemoAccounts().then(setDemoAccounts);
+    });
   }, []);
 
   const signIn = async (who: string, emailValue: string, passwordValue: string) => {
@@ -68,6 +73,18 @@ export const LoginPage: React.FC = () => {
       {/* Sign-in */}
       <main className="flex-1 flex items-start lg:items-center justify-center px-5 py-8 sm:px-8 lg:px-12 lg:py-10">
         <div className="gl-login-card w-full max-w-[400px] flex flex-col">
+          {serverDown && (
+            <div
+              role="status"
+              className="order-first mb-8 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 p-4 text-sm text-amber-900 dark:text-amber-200"
+            >
+              <p className="font-semibold">Sign-in isn't available at this address</p>
+              <p className="mt-1 text-amber-800 dark:text-amber-300">
+                The GoLinks server isn't answering here, so accounts, including demo accounts, can't sign in. Open
+                GoLinks at the address where its server runs.
+              </p>
+            </div>
+          )}
           <h1 className="font-['Plus_Jakarta_Sans'] text-[1.75rem] leading-tight font-bold tracking-tight text-[#18213A] dark:text-white">
             Sign in
           </h1>

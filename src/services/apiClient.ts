@@ -15,6 +15,10 @@ export class ApiError extends Error {
   }
 }
 
+/** Shown when /api isn't answered by the GoLinks server (e.g. a static-only host, or the server is down). */
+export const SERVER_UNREACHABLE_MESSAGE =
+  "Can't reach the GoLinks server. This address only serves the web pages, so signing in and saving links won't work here.";
+
 export type QueryParams = Record<string, string | number | boolean | undefined | null>;
 
 export function buildQuery(params?: QueryParams): string {
@@ -40,18 +44,28 @@ export async function apiRequest<T>(
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
-  const res = await fetch(`${API_BASE}/api${path}`, {
-    method: options.method || 'GET',
-    headers,
-    credentials: API_BASE ? 'include' : 'same-origin',
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api${path}`, {
+      method: options.method || 'GET',
+      headers,
+      credentials: API_BASE ? 'include' : 'same-origin',
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    });
+  } catch {
+    throw new ApiError(0, SERVER_UNREACHABLE_MESSAGE);
+  }
+
+  // The GoLinks server always answers /api with JSON (or an empty 204). Anything else, such as an
+  // HTML page or a hosting provider's own error, means the request never reached it.
+  const isJson = (res.headers.get('content-type') || '').includes('application/json');
 
   if (res.status === 401 && !options.silentAuth) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
   }
 
   if (options.raw && res.ok) return (await res.text()) as T;
+  if (res.ok && res.status !== 204 && !isJson) throw new ApiError(0, SERVER_UNREACHABLE_MESSAGE);
 
   const text = await res.text();
   let data: unknown = undefined;
@@ -63,11 +77,17 @@ export async function apiRequest<T>(
     }
   }
 
+  const serverError =
+    isJson && data && typeof data === 'object' && typeof (data as { error?: unknown }).error === 'string'
+      ? (data as { error: string }).error
+      : '';
+
   if (!res.ok && !options.allowStatus?.includes(res.status)) {
-    const serverError =
-      data && typeof data === 'object' && 'error' in data ? String((data as { error: unknown }).error) : '';
-    const message = serverError || `Request failed (${res.status} ${res.statusText})`;
-    throw new ApiError(res.status, message, data);
+    if (!serverError) {
+      // Not our error format: a proxy or host answered instead of the GoLinks server.
+      throw new ApiError(0, SERVER_UNREACHABLE_MESSAGE, data);
+    }
+    throw new ApiError(res.status, serverError, data);
   }
 
   return data as T;
