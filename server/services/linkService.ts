@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from '../../shared/uuid';
 import type Database from 'better-sqlite3';
 import { findSimilarLinks } from '../../shared/fuzzyMatch';
 import { parseGoInput, resolveShortUrl } from '../../shared/resolver';
@@ -15,6 +15,7 @@ import {
   getLinkById,
   getLinkByShortName,
   insertLink,
+  listLinkCategories,
   listLinks,
   recordLinkClick,
   saveLink,
@@ -145,10 +146,7 @@ export function queryLinks(db: Database.Database, params: LinkQuery = {}, viewer
 
 export function getCategories(db: Database.Database): string[] {
   const set = new Set<string>(DEFAULT_CATEGORIES);
-  const rows = db.prepare('SELECT DISTINCT category FROM links ORDER BY category').all() as Array<{
-    category: string;
-  }>;
-  rows.forEach((r) => r.category && set.add(r.category));
+  listLinkCategories(db).forEach((c) => c && set.add(c));
   return Array.from(set);
 }
 

@@ -349,6 +349,19 @@ curl -b jar -X POST http://go/api/links -H 'Content-Type: application/json' \
   -d '{"shortName":"standup","targetUrl":"https://meet.company.internal/standup","category":"Engineering"}'
 ```
 
+## Online demo on Vercel (no server)
+
+The repo includes `vercel.json`, so it can be deployed to Vercel as-is for an online demo. Vercel only serves static files, so on `*.vercel.app` addresses the app runs its backend **inside the browser**:
+
+- The real link rules from `server/services` (validation, permissions, private links, audit, import) run in the page. Their database calls are swapped at build time for browser storage (`src/demo/repositories`, see `vite.config.ts`).
+- Each visitor gets their own copy of the sample links and the two demo accounts (`admin@company.internal` / `Admin@12345`, `nikhil.nawale01@gmail.com` / `Employee@12345`), shown on the sign-in page with one-tap sign-in. Changes stay in that browser.
+- Typing `https://<your-app>.vercel.app/hr` opens the app, which then redirects to the target (no instant server-side 302).
+- Sign-in here is simulated and protects nothing. Don't put real internal URLs in the online demo.
+
+Other static hosts: build with `VITE_BACKEND=browser npm run build:client`. To force the real server even on a `*.vercel.app` address (e.g. with a separate API), build with `VITE_BACKEND=server`.
+
+On the LAN server nothing changes: the app talks to the GoLinks server as usual.
+
 ## Identity & permissions
 
 Everyone signs in with an email and password. Sign-in sets an `httpOnly`, `SameSite=Lax` session cookie; the server looks the session up on every request, so the browser can't fake who it is.

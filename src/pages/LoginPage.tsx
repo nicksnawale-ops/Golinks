@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Check, Copy, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { RouteSwitchboard } from '../components/RouteSwitchboard';
 import { useAuth } from '../context/AuthContext';
+import { usesBrowserBackend } from '../services/apiClient';
 import { checkServer, DemoAccount, getDemoAccounts } from '../services/authService';
 
 const inputClass =
@@ -179,7 +180,9 @@ export const LoginPage: React.FC = () => {
                 ))}
               </ul>
               <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
-                Demo accounts are for trying GoLinks out. Your administrator turns them off before real use.
+                {usesBrowserBackend()
+                  ? 'This online demo runs in your browser with sample links. Changes stay on this device.'
+                  : 'Demo accounts are for trying GoLinks out. Your administrator turns them off before real use.'}
               </p>
             </section>
           )}
