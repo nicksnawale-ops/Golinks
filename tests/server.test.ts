@@ -55,6 +55,7 @@ before(async () => {
     cookieSecure: false,
     clickRetentionDays: 365,
     bootstrapAdmin: null,
+    demoMode: false,
   };
   server = createApp(db, config).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
@@ -372,6 +373,10 @@ describe('sign-in and sessions', () => {
     assert.match(cookie, /SameSite=Lax/i);
   });
 
+  test('demo accounts are not published unless DEMO_MODE is on', async () => {
+    assert.deepEqual((await api('GET', '/auth/demo', undefined, {})).body, { enabled: false, accounts: [] });
+  });
+
   test('/auth/me and logout', async () => {
     const session = await signIn('admin@company.internal');
     assert.equal((await api('GET', '/auth/me', undefined, session)).body.email, 'admin@company.internal');
@@ -542,5 +547,22 @@ describe('insights', () => {
     assert.equal(count(), 1);
     await api('DELETE', `/links/${created.body.id}`);
     assert.equal(count(), 0);
+  });
+});
+
+describe('demo mode', () => {
+  test('known passwords when on, retracted when switched off', async () => {
+    const { applyDemoMode, getDemoAccounts } = await import('../server/db/demo');
+    const demoDb = openDatabase(':memory:', { seedSampleData: true, demoMode: true });
+    const accounts = getDemoAccounts(demoDb);
+    assert.deepEqual(accounts.map((a) => a.role).sort(), ['admin', 'employee']);
+    const { getUserCredentials } = await import('../server/repositories/userRepository');
+    const { verifyPassword } = await import('../server/security/passwords');
+    for (const a of accounts) assert.ok(verifyPassword(a.password, getUserCredentials(demoDb, a.email)?.passwordHash));
+
+    const log = applyDemoMode(demoDb, false);
+    assert.equal(log.length, 2);
+    for (const a of accounts) assert.equal(getUserCredentials(demoDb, a.email)?.passwordHash, null);
+    demoDb.close();
   });
 });

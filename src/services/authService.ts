@@ -26,6 +26,23 @@ export async function login(email: string, password: string): Promise<User> {
   return apiRequest<User>('/auth/login', { method: 'POST', body: { email, password }, silentAuth: true });
 }
 
+export interface DemoAccount {
+  label: string;
+  email: string;
+  password: string;
+  role: User['role'];
+}
+
+/** Demo sign-in details; the server only returns them when DEMO_MODE=true. */
+export async function getDemoAccounts(): Promise<DemoAccount[]> {
+  try {
+    const res = await apiRequest<{ enabled: boolean; accounts: DemoAccount[] }>('/auth/demo', { silentAuth: true });
+    return res.enabled ? res.accounts : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function logout(): Promise<void> {
   await apiRequest<void>('/auth/logout', { method: 'POST', silentAuth: true });
 }

@@ -150,6 +150,7 @@ All settings come from environment variables (or `.env`). See [`.env.example`](.
 | `TRUST_PROXY` | `false` | Set `true` behind a reverse proxy. |
 | `LOG_REQUESTS` | `true` | One log line per request, including the 302 target. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | *(empty)* | First admin account, created or promoted at start-up. The password is only applied while the account has none. Remove `ADMIN_PASSWORD` after first sign-in. |
+| `DEMO_MODE` | `false` | Evaluation only: the sample admin (`Admin@12345`) and employee (`Employee@12345`) accounts get known passwords, shown on the sign-in page. Switching it off removes those passwords at next start. Never enable with real links. |
 | `SESSION_TTL_HOURS` | `12` | How long a sign-in lasts. |
 | `COOKIE_SECURE` | `false` | Set `true` only when served over HTTPS. |
 | `CLICK_RETENTION_DAYS` | `365` | Days of per-click history kept for trend charts (total counts are never pruned). |
@@ -353,6 +354,8 @@ curl -b jar -X POST http://go/api/links -H 'Content-Type: application/json' \
 Everyone signs in with an email and password. Sign-in sets an `httpOnly`, `SameSite=Lax` session cookie; the server looks the session up on every request, so the browser can't fake who it is.
 
 **First admin:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and start the server. It creates that account (or promotes it to an active admin) and logs a warning at start-up if no admin can sign in. Sign in, change the password from the account menu, and remove `ADMIN_PASSWORD` from `.env`.
+
+**Demo mode:** for trying the app out, set `DEMO_MODE=true`. The sign-in page then lists a demo admin and a demo employee account that fill in with one tap. Turn it off before real use; at the next start the demo passwords are removed.
 
 **Adding people:** admins use the **Users** page to add accounts with an initial password, change roles, reset passwords and deactivate leavers. Deactivating or resetting a password signs that person out immediately; their links keep working. The sample identities seeded with the sample links have no password and can't sign in unless an admin sets one.
 

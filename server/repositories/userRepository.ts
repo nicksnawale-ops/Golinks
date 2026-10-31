@@ -86,6 +86,10 @@ export function setPasswordHash(db: Database.Database, id: string, passwordHash:
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
 }
 
+export function clearPasswordHash(db: Database.Database, id: string): void {
+  db.prepare('UPDATE users SET password_hash = NULL WHERE id = ?').run(id);
+}
+
 export function stampLogin(db: Database.Database, id: string): void {
   db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(new Date().toISOString(), id);
 }
