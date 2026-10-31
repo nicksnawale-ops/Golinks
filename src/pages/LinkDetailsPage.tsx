@@ -25,7 +25,8 @@ import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { QuickQRModal } from '../components/QuickQRModal';
 import { useAuth } from '../context/AuthContext';
 import { canUserManageLink } from '../services/authService';
-import { getLink, recordClick } from '../services/linkService';
+import { getLink, getLinkDailyClicks, recordClick } from '../services/linkService';
+import { ClickTrendChart } from '../components/ClickTrendChart';
 import { GoLink } from '../types/link';
 import { formatFullDateTime, formatNumber, formatRelativeTime } from '../utils/formatters';
 import { getLinkHealth } from '../utils/linkHealth';
@@ -397,6 +398,13 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
           </p>
         </div>
       </div>
+
+      <ClickTrendChart
+        title="Clicks, Last 30 Days"
+        subtitle={`Daily redirects through go/${link.shortName}`}
+        load={() => getLinkDailyClicks(link.id, 30)}
+        reloadKey={`${link.id}:${link.clickCount}`}
+      />
 
       {/* Additional Metadata Card */}
       <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-xs space-y-4">

@@ -1,71 +1,71 @@
-import { MOCK_USERS, User, UserRole } from '../types/auth';
+import { User } from '../types/auth';
+import { apiRequest, ApiError } from './apiClient';
 
-const AUTH_STORAGE_KEY = 'golinks_auth_current_user_v1';
-
-const delay = (ms = 25): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+/** A user as admins see them in user management. */
+export interface ManagedUser extends User {
+  isActive: boolean;
+  hasPassword: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
 
 /**
- * Get currently authenticated user from storage (defaults to Admin for quick evaluation).
+ * The signed-in user, or null when there is no valid session.
+ * Identity comes from the httpOnly session cookie set by the server at sign-in.
  */
-export async function getCurrentUser(): Promise<User> {
-  await delay(10);
+export async function getCurrentUser(): Promise<User | null> {
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.id) return parsed;
-    }
+    return await apiRequest<User>('/auth/me', { silentAuth: true });
   } catch (err) {
-    console.error('Failed to read auth user from storage', err);
+    if (err instanceof ApiError && err.status === 401) return null;
+    throw err;
   }
-
-  // Default to Admin Alex Rivera
-  const defaultUser = MOCK_USERS[0];
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(defaultUser));
-  return defaultUser;
 }
 
-/**
- * Set active user (swapping role/account).
- */
-export async function setCurrentUser(user: User): Promise<void> {
-  await delay(10);
-  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+export async function login(email: string, password: string): Promise<User> {
+  return apiRequest<User>('/auth/login', { method: 'POST', body: { email, password }, silentAuth: true });
 }
 
-/**
- * Login using mock selector (LDAP/SSO adapter placeholder).
- */
-export async function loginWithMockUser(userId: string): Promise<User> {
-  await delay(30);
-  const found = MOCK_USERS.find((u) => u.id === userId);
-  if (!found) {
-    throw new Error(`User with ID ${userId} was not found in directory.`);
-  }
-  await setCurrentUser(found);
-  return found;
-}
-
-/**
- * Logout user.
- */
 export async function logout(): Promise<void> {
-  await delay(20);
-  localStorage.removeItem(AUTH_STORAGE_KEY);
+  await apiRequest<void>('/auth/logout', { method: 'POST', silentAuth: true });
 }
 
-/**
- * Get list of available mock directory users.
- */
-export async function getMockUsers(): Promise<User[]> {
-  await delay(10);
-  return [...MOCK_USERS];
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiRequest<void>('/auth/password', { method: 'POST', body: { currentPassword, newPassword } });
+}
+
+// ---- User management (admin) ------------------------------------------------
+
+export async function listUsers(): Promise<ManagedUser[]> {
+  return apiRequest<ManagedUser[]>('/users');
+}
+
+export async function createUser(input: {
+  name: string;
+  email: string;
+  role: User['role'];
+  department: string;
+  password: string;
+}): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>('/users', { method: 'POST', body: input });
+}
+
+export async function updateUser(
+  id: string,
+  input: Partial<Pick<User, 'name' | 'role' | 'department'>> & { isActive?: boolean }
+): Promise<ManagedUser> {
+  return apiRequest<ManagedUser>(`/users/${encodeURIComponent(id)}`, { method: 'PUT', body: input });
+}
+
+export async function resetUserPassword(id: string, password: string): Promise<void> {
+  await apiRequest<void>(`/users/${encodeURIComponent(id)}/password`, { method: 'POST', body: { password } });
 }
 
 /**
  * RBAC Helper: determines if a user has permission to edit or delete a link.
  * - Admin: can edit/delete ANY link.
  * - Employee: can edit/delete ONLY their own links.
+ * The server enforces the same rules; these only decide what the UI shows.
  */
 export function canUserManageLink(
   user: User | null | undefined,

@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { UserSwitcher } from './UserSwitcher';
+import { UserMenu } from './UserMenu';
 
 export type ActivePage =
   | 'dashboard'
@@ -25,7 +25,8 @@ export type ActivePage =
   | 'redirect'
   | 'help'
   | 'setup-guide'
-  | 'audit-log';
+  | 'audit-log'
+  | 'users';
 
 interface NavbarProps {
   currentPage: ActivePage;
@@ -174,6 +175,16 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => onNavigate('users')}
+                className={navItemClass('users')}
+              >
+                Users
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => onNavigate('help')}
@@ -208,9 +219,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* User Switcher */}
+            {/* Account menu */}
             <div className="hidden sm:block">
-              <UserSwitcher />
+              <UserMenu />
             </div>
 
             {/* Primary Action Button */}
@@ -261,7 +272,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       {mobileMenuOpen && (
         <div className="xl:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-2 shadow-lg">
           <div className="sm:hidden pb-2 mb-2 border-b border-slate-100 dark:border-slate-800">
-            <UserSwitcher />
+            <UserMenu />
           </div>
 
           <div className="grid grid-cols-2 gap-1.5">
@@ -308,6 +319,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className={`text-left ${navItemClass('audit-log')}`}
               >
                 Audit Log
+              </button>
+            )}
+
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavigate('users');
+                  setMobileMenuOpen(false);
+                }}
+                className={`text-left ${navItemClass('users')}`}
+              >
+                Users
               </button>
             )}
 

@@ -1,8 +1,9 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { UNAUTHORIZED_EVENT } from '../services/apiClient';
 import {
   getCurrentUser,
-  getMockUsers,
-  loginWithMockUser,
+  listUsers,
+  login as loginService,
   logout as logoutService,
 } from '../services/authService';
 import { User, UserRole } from '../types/auth';
@@ -12,9 +13,10 @@ interface AuthContextType {
   role: UserRole;
   isAdmin: boolean;
   isEmployee: boolean;
+  /** Directory users (admins only; used e.g. to reassign link owners). Empty for employees. */
   availableUsers: User[];
   loading: boolean;
-  switchUser: (userId: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -26,31 +28,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadAuth = async () => {
+  const loadDirectory = useCallback(async (user: User | null) => {
+    if (user?.role !== 'admin') {
+      setAvailableUsers([]);
+      return;
+    }
+    try {
+      setAvailableUsers((await listUsers()).filter((u) => u.isActive));
+    } catch (err) {
+      console.warn('Failed to load user directory', err);
+      setAvailableUsers([]);
+    }
+  }, []);
+
+  const loadAuth = useCallback(async () => {
     try {
       setLoading(true);
-      const [user, users] = await Promise.all([getCurrentUser(), getMockUsers()]);
+      const user = await getCurrentUser();
       setCurrUser(user);
-      setAvailableUsers(users);
+      await loadDirectory(user);
     } catch (err) {
       console.error('Failed to initialize auth', err);
+      setCurrUser(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadDirectory]);
 
   useEffect(() => {
     loadAuth();
+  }, [loadAuth]);
+
+  // Any API call that comes back 401 means the session expired or was revoked.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      setCurrUser(null);
+      setAvailableUsers([]);
+    };
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized);
   }, []);
 
-  const handleSwitchUser = async (userId: string) => {
-    const user = await loginWithMockUser(userId);
+  const handleLogin = async (email: string, password: string) => {
+    const user = await loginService(email, password);
     setCurrUser(user);
+    await loadDirectory(user);
   };
 
   const handleLogout = async () => {
-    await logoutService();
-    setCurrUser(null);
+    try {
+      await logoutService();
+    } finally {
+      setCurrUser(null);
+      setAvailableUsers([]);
+    }
   };
 
   const role: UserRole = currentUser?.role || 'employee';
@@ -66,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isEmployee,
         availableUsers,
         loading,
-        switchUser: handleSwitchUser,
+        login: handleLogin,
         logout: handleLogout,
         refreshAuth: loadAuth,
       }}
