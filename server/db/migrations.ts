@@ -55,6 +55,45 @@ export const MIGRATIONS: Array<{ version: number; name: string; sql: string }> =
       CREATE INDEX idx_audit_log_link_id ON audit_log (link_id);
     `,
   },
+  {
+    version: 2,
+    name: 'auth_sessions_insights',
+    sql: `
+      -- Real login: users without a password_hash cannot sign in.
+      ALTER TABLE users ADD COLUMN password_hash TEXT;
+      ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1));
+      ALTER TABLE users ADD COLUMN last_login_at TEXT;
+
+      -- Only a SHA-256 of the session token is stored; the raw token lives in the httpOnly cookie.
+      CREATE TABLE sessions (
+        token_hash TEXT PRIMARY KEY,
+        user_id    TEXT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_sessions_user_id ON sessions (user_id);
+      CREATE INDEX idx_sessions_expires_at ON sessions (expires_at);
+
+      -- go/<name> requests that matched no link: tells admins which links people want.
+      CREATE TABLE not_found_requests (
+        short_name        TEXT PRIMARY KEY,
+        request_count     INTEGER NOT NULL DEFAULT 0,
+        first_requested_at TEXT NOT NULL,
+        last_requested_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_not_found_count ON not_found_requests (request_count DESC);
+
+      -- One row per redirect, for trends. links.click_count stays as the fast running total.
+      CREATE TABLE click_events (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        link_id   TEXT NOT NULL REFERENCES links (id) ON DELETE CASCADE,
+        user_id   TEXT,
+        timestamp TEXT NOT NULL
+      );
+      CREATE INDEX idx_click_events_link_time ON click_events (link_id, timestamp);
+      CREATE INDEX idx_click_events_time ON click_events (timestamp);
+    `,
+  },
 ];
 
 /**

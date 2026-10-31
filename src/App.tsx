@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CsvImportModal } from './components/CsvImportModal';
 import { ActivePage, Navbar } from './components/Navbar';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { useGoLinks } from './hooks/useGoLinks';
@@ -13,8 +13,10 @@ import { EditLinkPage } from './pages/EditLinkPage';
 import { HowToUsePage } from './pages/HowToUsePage';
 import { LanSetupGuidePage } from './pages/LanSetupGuidePage';
 import { LinkDetailsPage } from './pages/LinkDetailsPage';
+import { LoginPage } from './pages/LoginPage';
 import { MyLinksPage } from './pages/MyLinksPage';
 import { RedirectPage } from './pages/RedirectPage';
+import { UsersPage } from './pages/UsersPage';
 
 function GoLinksApp() {
   const {
@@ -67,6 +69,12 @@ function GoLinksApp() {
 
     if (route === 'audit-log') {
       setCurrentPage('audit-log');
+      setActiveParams({});
+      return;
+    }
+
+    if (route === 'users') {
+      setCurrentPage('users');
       setActiveParams({});
       return;
     }
@@ -141,6 +149,8 @@ function GoLinksApp() {
       window.location.hash = '#/my-links';
     } else if (page === 'audit-log') {
       window.location.hash = '#/audit-log';
+    } else if (page === 'users') {
+      window.location.hash = '#/users';
     } else if (page === 'create') {
       window.location.hash = '#/create';
     } else if (page === 'help') {
@@ -220,6 +230,8 @@ function GoLinksApp() {
         {currentPage === 'audit-log' && (
           <AuditLogPage onNavigate={navigateTo} />
         )}
+
+        {currentPage === 'users' && <UsersPage />}
 
         {currentPage === 'create' && (
           <CreateLinkPage
@@ -335,12 +347,26 @@ function GoLinksApp() {
   );
 }
 
+/** Everything except the sign-in screen needs a session; links reload when the user changes. */
+function AuthGate() {
+  const { currentUser, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="w-6 h-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" aria-label="Loading" />
+      </div>
+    );
+  }
+  if (!currentUser) return <LoginPage />;
+  return <GoLinksApp key={currentUser.id} />;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
         <AuthProvider>
-          <GoLinksApp />
+          <AuthGate />
         </AuthProvider>
       </ToastProvider>
     </ThemeProvider>

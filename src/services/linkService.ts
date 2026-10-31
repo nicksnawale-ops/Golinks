@@ -177,3 +177,39 @@ export async function importLinks(jsonString: string): Promise<number> {
   });
   return result.imported;
 }
+
+// ---- Insights ---------------------------------------------------------------
+
+export interface DailyClicks {
+  date: string; // YYYY-MM-DD (UTC)
+  clicks: number;
+  uniqueUsers: number;
+}
+
+export interface MissingLinkRequest {
+  shortName: string;
+  requestCount: number;
+  firstRequestedAt: string;
+  lastRequestedAt: string;
+}
+
+/** Clicks per day for one link over the last `days` days (zero-filled, oldest first). */
+export async function getLinkDailyClicks(id: string, days = 30): Promise<DailyClicks[]> {
+  return apiRequest<DailyClicks[]>(`/links/${encodeURIComponent(id)}/clicks${buildQuery({ days })}`);
+}
+
+/** Clicks per day across every link the current user can see, last 30 days. */
+export async function getOverallDailyClicks(): Promise<DailyClicks[]> {
+  const stats = await apiRequest<{ dailyClicks: DailyClicks[] }>('/stats');
+  return stats.dailyClicks;
+}
+
+/** Admin: go/<name> requests that matched no link, most requested first. */
+export async function getMissingLinks(limit = 10): Promise<MissingLinkRequest[]> {
+  return apiRequest<MissingLinkRequest[]>(`/insights/missing${buildQuery({ limit })}`);
+}
+
+/** Admin: remove a name from the missing-links list (e.g. a typo nobody needs). */
+export async function dismissMissingLink(shortName: string): Promise<void> {
+  await apiRequest<void>(`/insights/missing/${encodeURIComponent(shortName)}`, { method: 'DELETE' });
+}

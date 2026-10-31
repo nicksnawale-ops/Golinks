@@ -1,4 +1,5 @@
-import { getCurrentUserId } from './authService';
+/** Fired when the session has expired, so the app can show the sign-in screen. */
+export const UNAUTHORIZED_EVENT = 'golinks:unauthorized';
 
 /** Same-origin by default; override with VITE_API_BASE_URL if the API lives elsewhere. */
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/+$/, '') || '';
@@ -28,23 +29,27 @@ export function buildQuery(params?: QueryParams): string {
 }
 
 /**
- * fetch() wrapper: sends the active user's id, parses JSON, and throws ApiError with the
+ * fetch() wrapper: sends the session cookie, parses JSON, and throws ApiError with the
  * server's error message on non-2xx responses (unless the status is listed in allowStatus).
+ * A 401 also fires UNAUTHORIZED_EVENT (unless silentAuth), which sends the user to sign-in.
  */
 export async function apiRequest<T>(
   path: string,
-  options: { method?: string; body?: unknown; allowStatus?: number[]; raw?: boolean } = {}
+  options: { method?: string; body?: unknown; allowStatus?: number[]; raw?: boolean; silentAuth?: boolean } = {}
 ): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  const userId = getCurrentUserId();
-  if (userId) headers['X-GoLinks-User-Id'] = userId;
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
 
   const res = await fetch(`${API_BASE}/api${path}`, {
     method: options.method || 'GET',
     headers,
+    credentials: API_BASE ? 'include' : 'same-origin',
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
   });
+
+  if (res.status === 401 && !options.silentAuth) {
+    window.dispatchEvent(new Event(UNAUTHORIZED_EVENT));
+  }
 
   if (options.raw && res.ok) return (await res.text()) as T;
 

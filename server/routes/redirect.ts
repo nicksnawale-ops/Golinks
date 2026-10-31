@@ -5,7 +5,10 @@
  */
 import { Router } from 'express';
 import { isReservedShortName } from '../../shared/resolver';
+import { validateShortNameFormat } from '../../shared/validation';
+import { currentActor } from '../auth';
 import { DB } from '../db/database';
+import { recordNotFound } from '../repositories/insightsRepository';
 import { resolveGoLink } from '../services/linkService';
 
 /** First path segment of the go-link candidate, with a leading "go/" alias removed. */
@@ -24,11 +27,16 @@ export function redirectRouter(db: DB): Router {
     // /api, /assets, app page routes (dashboard, directory, ...) and files (favicon.ico) are never go links.
     if (!segment || segment.includes('.') || isReservedShortName(segment)) return next();
 
-    const result = resolveGoLink(db, raw, { recordClick: req.method === 'GET' });
+    const result = resolveGoLink(db, raw, { recordClick: req.method === 'GET', viewer: currentActor(res) });
 
     if (result.found) {
       res.set('Cache-Control', 'private, no-store');
       return res.redirect(302, result.resolvedUrl);
+    }
+
+    // Remember what people asked for, so admins can see which links are missing.
+    if (!result.isDisabled && req.method === 'GET' && validateShortNameFormat(segment).valid) {
+      recordNotFound(db, segment);
     }
 
     res.locals.spaStatus = result.isDisabled ? 410 : 404;

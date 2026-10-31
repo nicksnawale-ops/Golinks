@@ -9,6 +9,7 @@ import { CreateLinkInput, GoLink, ResolveResult, UpdateLinkInput } from '../../s
 import { normalizeShortName, validateShortNameFormat } from '../../shared/validation';
 import { conflict, forbidden, notFound } from '../errors';
 import { recordAuditEvent } from '../repositories/auditRepository';
+import { getDailyClicks, recordClickEvent } from '../repositories/insightsRepository';
 import {
   deleteLinkById,
   getLinkById,
@@ -25,6 +26,29 @@ export function canManageLink(actor: User, link: { owner: string }): boolean {
   return actor.role === 'admin' || actor.email.toLowerCase() === link.owner.toLowerCase();
 }
 
+/**
+ * Who is looking at links: a signed-in user, null for an anonymous request, or undefined for
+ * trusted internal calls (no filtering). Routes always pass currentActor(res): User | null.
+ */
+export type Viewer = User | null | undefined;
+
+/** Public links are visible to everyone; private links only to their owner and admins. */
+export function canViewLink(viewer: Viewer, link: { owner: string; visibility: string }): boolean {
+  if (viewer === undefined || link.visibility !== 'private') return true;
+  if (!viewer) return false;
+  return viewer.role === 'admin' || viewer.email.toLowerCase() === link.owner.toLowerCase();
+}
+
+export function visibleLinks(db: Database.Database, viewer: Viewer): GoLink[] {
+  return listLinks(db).filter((l) => canViewLink(viewer, l));
+}
+
+/** A link by id, or null when it doesn't exist or the viewer may not see it (never reveal private links). */
+export function getVisibleLink(db: Database.Database, id: string, viewer: Viewer): GoLink | null {
+  const link = getLinkById(db, id);
+  return link && canViewLink(viewer, link) ? link : null;
+}
+
 function duplicateError(existing: GoLink) {
   return conflict(`go/${existing.shortName} already exists and is owned by ${existing.owner}.`);
 }
@@ -36,13 +60,17 @@ function isUniqueViolation(err: unknown): boolean {
 export function checkShortNameAvailable(
   db: Database.Database,
   shortName: string,
-  excludeId?: string
+  excludeId?: string,
+  viewer?: Viewer
 ): { valid: boolean; error?: string } {
   const format = validateShortNameFormat(shortName);
   if (!format.valid) return format;
   const existing = getLinkByShortName(db, normalizeShortName(shortName));
   if (existing && existing.id !== excludeId) {
-    return { valid: false, error: `go/${existing.shortName} already exists and is owned by ${existing.owner}.` };
+    // Names are globally unique, but don't reveal who owns someone else's private link.
+    return canViewLink(viewer, existing)
+      ? { valid: false, error: `go/${existing.shortName} already exists and is owned by ${existing.owner}.` }
+      : { valid: false, error: `go/${existing.shortName} is already taken.` };
   }
   return { valid: true };
 }
@@ -58,8 +86,8 @@ export interface LinkQuery {
 }
 
 /** Filtering and sorting identical to the original localStorage implementation. */
-export function queryLinks(db: Database.Database, params: LinkQuery = {}): GoLink[] {
-  let links = listLinks(db);
+export function queryLinks(db: Database.Database, params: LinkQuery = {}, viewer?: Viewer): GoLink[] {
+  let links = visibleLinks(db, viewer);
 
   if (params.shortName) {
     const normalized = normalizeShortName(params.shortName);
@@ -126,7 +154,7 @@ export function getCategories(db: Database.Database): string[] {
 
 export function createLink(db: Database.Database, input: CreateLinkInput, actor: User): GoLink {
   const existing = getLinkByShortName(db, input.shortName);
-  if (existing) throw duplicateError(existing);
+  if (existing) throw canViewLink(actor, existing) ? duplicateError(existing) : conflict(`go/${existing.shortName} is already taken.`);
 
   const now = new Date().toISOString();
   const link: GoLink = {
@@ -174,7 +202,7 @@ export function createLink(db: Database.Database, input: CreateLinkInput, actor:
 
 export function updateLink(db: Database.Database, id: string, input: UpdateLinkInput, actor: User): GoLink {
   const current = getLinkById(db, id);
-  if (!current) throw notFound(`Link with ID "${id}" was not found.`);
+  if (!current || !canViewLink(actor, current)) throw notFound(`Link with ID "${id}" was not found.`);
   if (!canManageLink(actor, current)) throw forbidden('You can only edit shortcuts you own.');
 
   const oldValues: Partial<GoLink> = { ...current };
@@ -184,7 +212,9 @@ export function updateLink(db: Database.Database, id: string, input: UpdateLinkI
 
   if (input.shortName && input.shortName !== current.shortName) {
     const existing = getLinkByShortName(db, input.shortName);
-    if (existing && existing.id !== id) throw duplicateError(existing);
+    if (existing && existing.id !== id) {
+      throw canViewLink(actor, existing) ? duplicateError(existing) : conflict(`go/${existing.shortName} is already taken.`);
+    }
     next.shortName = input.shortName;
   }
   if (input.targetUrl !== undefined) next.targetUrl = input.targetUrl;
@@ -232,7 +262,7 @@ export function updateLink(db: Database.Database, id: string, input: UpdateLinkI
 
 export function deleteLink(db: Database.Database, id: string, actor: User): void {
   const existing = getLinkById(db, id);
-  if (!existing) throw notFound(`Link with ID "${id}" was not found.`);
+  if (!existing || !canViewLink(actor, existing)) throw notFound(`Link with ID "${id}" was not found.`);
   if (!canManageLink(actor, existing)) throw forbidden('You can only delete shortcuts you own.');
 
   db.transaction(() => {
@@ -347,16 +377,20 @@ function isSafeRedirectTarget(url: string): boolean {
 export function resolveGoLink(
   db: Database.Database,
   rawPath: string,
-  options: { recordClick?: boolean } = {}
+  options: { recordClick?: boolean; viewer?: Viewer } = {}
 ): ResolveResult {
-  const links = listLinks(db);
+  // Private links simply don't exist for people who may not see them.
+  const links = visibleLinks(db, options.viewer);
   const resolution = resolveShortUrl(rawPath, links);
 
   if (resolution.status === 'success' && isSafeRedirectTarget(resolution.resolvedUrl)) {
     let link = resolution.link;
     if (options.recordClick !== false) {
       const at = new Date().toISOString();
-      recordLinkClick(db, link.id, at);
+      db.transaction(() => {
+        recordLinkClick(db, link.id, at);
+        recordClickEvent(db, link.id, options.viewer?.id ?? null, at);
+      })();
       link = { ...link, clickCount: link.clickCount + 1, lastAccessedAt: at };
     }
     return {
@@ -393,22 +427,18 @@ export function resolveGoLink(
   };
 }
 
-export function getStats(db: Database.Database) {
-  const totals = db
-    .prepare(
-      `SELECT COUNT(*) AS totalLinks,
-              COALESCE(SUM(is_active), 0) AS activeLinks,
-              COALESCE(SUM(click_count), 0) AS totalClicks
-       FROM links`
-    )
-    .get() as { totalLinks: number; activeLinks: number; totalClicks: number };
+export function getStats(db: Database.Database, viewer?: Viewer) {
+  const links = visibleLinks(db, viewer);
+  const activeLinks = links.filter((l) => l.isActive).length;
+  const totalClicks = links.reduce((sum, l) => sum + l.clickCount, 0);
 
-  const byCategory = db
-    .prepare(
-      `SELECT category, COUNT(*) AS links, COALESCE(SUM(click_count), 0) AS clicks
-       FROM links GROUP BY category ORDER BY clicks DESC`
-    )
-    .all();
+  const categories = new Map<string, { category: string; links: number; clicks: number }>();
+  for (const l of links) {
+    const c = categories.get(l.category) ?? { category: l.category, links: 0, clicks: 0 };
+    c.links++;
+    c.clicks += l.clickCount;
+    categories.set(l.category, c);
+  }
 
   const pick = (l: GoLink) => ({
     id: l.id,
@@ -417,17 +447,21 @@ export function getStats(db: Database.Database) {
     lastAccessedAt: l.lastAccessedAt,
     createdAt: l.createdAt,
   });
-  const top = queryLinks(db, { sortBy: 'clicks' }).slice(0, 10).map(pick);
-  const recent = queryLinks(db, { sortBy: 'recent' }).slice(0, 10).map(pick);
+  const top = queryLinks(db, { sortBy: 'clicks' }, viewer).slice(0, 10).map(pick);
+  const recent = queryLinks(db, { sortBy: 'recent' }, viewer).slice(0, 10).map(pick);
+
+  // Admins see every link, so their trend covers all clicks; others only their visible links.
+  const seesAll = viewer === undefined || viewer?.role === 'admin';
 
   return {
-    totalLinks: totals.totalLinks,
-    activeLinks: totals.activeLinks,
-    inactiveLinks: totals.totalLinks - totals.activeLinks,
-    totalClicks: totals.totalClicks,
-    byCategory,
+    totalLinks: links.length,
+    activeLinks,
+    inactiveLinks: links.length - activeLinks,
+    totalClicks,
+    byCategory: Array.from(categories.values()).sort((a, b) => b.clicks - a.clicks),
     topLinks: top,
     recentlyCreated: recent,
+    dailyClicks: getDailyClicks(db, 30, seesAll ? undefined : links.map((l) => l.id)),
     generatedAt: new Date().toISOString(),
   };
 }

@@ -31,12 +31,15 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { ClickTrendChart } from '../components/ClickTrendChart';
 import { CopyButton } from '../components/CopyButton';
+import { MissingLinksCard } from '../components/MissingLinksCard';
 import { DeactivateConfirmModal } from '../components/DeactivateConfirmModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { downloadCsvFile, exportLinksToCsv } from '../services/csvService';
+import { getOverallDailyClicks } from '../services/linkService';
 import { GoLink } from '../types/link';
 import { formatNumber, formatRelativeTime } from '../utils/formatters';
 import { getLinkHealth } from '../utils/linkHealth';
@@ -316,6 +319,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Click trend (everyone) + missing links people asked for (admins) */}
+      <div className={`grid grid-cols-1 gap-6 ${isAdmin ? 'lg:grid-cols-3' : ''}`}>
+        <div className={isAdmin ? 'lg:col-span-2' : ''}>
+          <ClickTrendChart
+            title="Clicks, Last 30 Days"
+            subtitle={isAdmin ? 'All go-link redirects per day' : 'Redirects per day across the links you can see'}
+            load={getOverallDailyClicks}
+            reloadKey={totalClicks}
+          />
+        </div>
+        {isAdmin && <MissingLinksCard onCreate={(name) => onNavigate('create', { initialShortName: name })} />}
       </div>
 
       {/* Grid: Recently Added Links & Stale Links Needing Review */}

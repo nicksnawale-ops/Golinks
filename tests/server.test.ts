@@ -8,6 +8,8 @@ import type { Server } from 'node:http';
 import { createApp } from '../server/app';
 import { ServerConfig } from '../server/config';
 import { DB, openDatabase } from '../server/db/database';
+import { setPasswordHash } from '../server/repositories/userRepository';
+import { hashPassword } from '../server/security/passwords';
 
 let server: Server;
 let db: DB;
@@ -15,8 +17,24 @@ let base: string;
 const staticDir = fs.mkdtempSync(path.join(os.tmpdir(), 'golinks-static-'));
 const SPA_MARKER = '<div id="root"></div><!-- golinks-spa -->';
 
-const ADMIN = { 'X-GoLinks-User-Id': 'user_admin' };
-const EMPLOYEE = { 'X-GoLinks-User-Id': 'user_nikhil' };
+// Session cookies, filled in by signing in during before().
+let ADMIN: Record<string, string> = {};
+let EMPLOYEE: Record<string, string> = {};
+let OTHER_EMPLOYEE: Record<string, string> = {};
+const PASSWORD = 'correct-horse-battery';
+
+/** Signs in and returns a { Cookie } header for that session. */
+async function signIn(email: string, password = PASSWORD): Promise<Record<string, string>> {
+  const res = await fetch(base + '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  assert.equal(res.status, 200, `sign in as ${email}`);
+  const cookie = (res.headers.get('set-cookie') || '').split(';')[0];
+  assert.match(cookie, /^golinks_session=/);
+  return { Cookie: cookie };
+}
 
 before(async () => {
   fs.mkdirSync(path.join(staticDir, 'assets'));
@@ -33,10 +51,19 @@ before(async () => {
     allowDataReset: false,
     trustProxy: false,
     logRequests: false,
+    sessionTtlHours: 12,
+    cookieSecure: false,
+    clickRetentionDays: 365,
+    bootstrapAdmin: null,
   };
   server = createApp(db, config).listen(0, '127.0.0.1');
   await new Promise((resolve) => server.once('listening', resolve));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+
+  for (const id of ['user_admin', 'user_nikhil', 'user_sarah']) setPasswordHash(db, id, hashPassword(PASSWORD));
+  ADMIN = await signIn('admin@company.internal');
+  EMPLOYEE = await signIn('nikhil.nawale01@gmail.com');
+  OTHER_EMPLOYEE = await signIn('hr-ops@company.internal');
 });
 
 after(() => {
@@ -281,7 +308,9 @@ describe('API', () => {
     assert.equal(res.body.imported, 1);
     assert.deepEqual(res.body.skipped.map((s: { index: number }) => s.index), [1, 2, 3]);
 
-    const exported = await fetch(base + '/api/export');
+    assert.equal((await fetch(base + '/api/export')).status, 401);
+    assert.equal((await fetch(base + '/api/export', { headers: EMPLOYEE })).status, 403);
+    const exported = await fetch(base + '/api/export', { headers: ADMIN });
     assert.match(exported.headers.get('content-disposition') || '', /attachment/);
     const all = await exported.json();
     const one = all.find((l: { shortName: string }) => l.shortName === 'imp-one');
@@ -309,5 +338,209 @@ describe('API', () => {
       body: '{bad',
     });
     assert.equal(res.status, 400);
+  });
+});
+
+describe('sign-in and sessions', () => {
+  test('the old self-asserted header grants nothing', async () => {
+    const res = await api('POST', '/links', { shortName: 'spoofed', targetUrl: 'https://a.local' }, {
+      'X-GoLinks-User-Id': 'user_admin',
+    });
+    assert.equal(res.status, 401);
+  });
+
+  test('wrong password, unknown email and password-less accounts all get the same 401', async () => {
+    for (const [email, password] of [
+      ['admin@company.internal', 'wrong-password'],
+      ['nobody@company.internal', PASSWORD],
+      ['finance-ops@company.internal', PASSWORD], // seeded user with no password
+    ]) {
+      const res = await api('POST', '/auth/login', { email, password }, {});
+      assert.equal(res.status, 401, email);
+      assert.equal(res.body.error, 'Incorrect email or password.');
+    }
+  });
+
+  test('session cookie is httpOnly and SameSite=Lax', async () => {
+    const res = await fetch(base + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'ADMIN@company.internal', password: PASSWORD }),
+    });
+    const cookie = res.headers.get('set-cookie') || '';
+    assert.match(cookie, /HttpOnly/i);
+    assert.match(cookie, /SameSite=Lax/i);
+  });
+
+  test('/auth/me and logout', async () => {
+    const session = await signIn('admin@company.internal');
+    assert.equal((await api('GET', '/auth/me', undefined, session)).body.email, 'admin@company.internal');
+    assert.equal((await api('GET', '/auth/me', undefined, {})).status, 401);
+    assert.equal((await api('POST', '/auth/logout', undefined, session)).status, 204);
+    assert.equal((await api('GET', '/auth/me', undefined, session)).status, 401);
+  });
+
+  test('repeated failures are rate limited', async () => {
+    let last = 0;
+    for (let i = 0; i < 11; i++) {
+      last = (await api('POST', '/auth/login', { email: 'ratelimit@company.internal', password: 'nope-nope' }, {})).status;
+    }
+    assert.equal(last, 429);
+  });
+
+  test('change password signs out other sessions', async () => {
+    const a = await signIn('hr-ops@company.internal');
+    const b = await signIn('hr-ops@company.internal');
+    assert.equal((await api('POST', '/auth/password', { currentPassword: 'wrong-one', newPassword: 'new-password-1' }, a)).status, 400);
+    assert.equal((await api('POST', '/auth/password', { currentPassword: PASSWORD, newPassword: 'short' }, a)).status, 400);
+    assert.equal((await api('POST', '/auth/password', { currentPassword: PASSWORD, newPassword: 'new-password-1' }, a)).status, 204);
+    assert.equal((await api('GET', '/auth/me', undefined, a)).status, 200);
+    assert.equal((await api('GET', '/auth/me', undefined, b)).status, 401);
+    // put it back for other tests
+    setPasswordHash(db, 'user_sarah', hashPassword(PASSWORD));
+    OTHER_EMPLOYEE = await signIn('hr-ops@company.internal');
+  });
+
+  test('cross-site writes are blocked', async () => {
+    const res = await fetch(base + '/api/links', {
+      method: 'POST',
+      headers: { ...ADMIN, 'Content-Type': 'application/json', Origin: 'http://evil.example' },
+      body: JSON.stringify({ shortName: 'csrf-link', targetUrl: 'https://a.local' }),
+    });
+    assert.equal(res.status, 403);
+    const sameOrigin = await fetch(base + '/api/links/validate?shortName=x1', { headers: { ...ADMIN, Origin: base } });
+    assert.equal(sameOrigin.status, 200);
+  });
+});
+
+describe('user management', () => {
+  test('admin only, and /api/users no longer leaks ids to anonymous callers', async () => {
+    assert.equal((await api('GET', '/users', undefined, {})).status, 401);
+    assert.equal((await api('GET', '/users', undefined, EMPLOYEE)).status, 403);
+    const { body } = await api('GET', '/users');
+    assert.ok(body.length >= 4);
+    assert.ok(body.every((u: Record<string, unknown>) => !('passwordHash' in u) && !('password_hash' in u)));
+  });
+
+  test('create user, sign in, deactivate → signed out', async () => {
+    const created = await api('POST', '/users', {
+      name: 'New Person',
+      email: 'New.Person@company.internal',
+      role: 'employee',
+      department: 'Ops',
+      password: 'a-good-password',
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.email, 'new.person@company.internal');
+    assert.equal((await api('POST', '/users', { name: 'Dup', email: 'new.person@company.internal', password: 'a-good-password' })).status, 409);
+
+    const session = await signIn('new.person@company.internal', 'a-good-password');
+    assert.equal((await api('PUT', `/users/${created.body.id}`, { isActive: false })).status, 200);
+    assert.equal((await api('GET', '/auth/me', undefined, session)).status, 401);
+    assert.equal((await api('POST', '/auth/login', { email: 'new.person@company.internal', password: 'a-good-password' }, {})).status, 401);
+  });
+
+  test('cannot remove the last admin who can sign in', async () => {
+    assert.equal((await api('PUT', '/users/user_admin', { role: 'employee' })).status, 400);
+    assert.equal((await api('PUT', '/users/user_admin', { isActive: false })).status, 400);
+  });
+});
+
+describe('private links', () => {
+  let privateId = '';
+
+  before(async () => {
+    const res = await api('POST', '/links', { shortName: 'secret-plan', targetUrl: 'https://secret.local', visibility: 'private' }, EMPLOYEE);
+    assert.equal(res.status, 201);
+    privateId = res.body.id;
+  });
+
+  test('hidden from other employees and anonymous users everywhere', async () => {
+    for (const who of [OTHER_EMPLOYEE, {}]) {
+      const list = await api('GET', '/links', undefined, who);
+      assert.ok(!list.body.some((l: { id: string }) => l.id === privateId));
+      assert.equal((await api('GET', `/links/${privateId}`, undefined, who)).status, 404);
+      assert.equal((await api('GET', '/resolve/secret-plan', undefined, who)).status, 404);
+      const redirect = await get('/secret-plan', { headers: who });
+      assert.equal(redirect.status, 404);
+    }
+    assert.equal((await api('PUT', `/links/${privateId}`, { targetUrl: 'https://x.local' }, OTHER_EMPLOYEE)).status, 404);
+    assert.equal((await api('DELETE', `/links/${privateId}`, undefined, OTHER_EMPLOYEE)).status, 404);
+  });
+
+  test('visible to the owner and admins', async () => {
+    for (const who of [EMPLOYEE, ADMIN]) {
+      assert.equal((await api('GET', `/links/${privateId}`, undefined, who)).status, 200);
+      const redirect = await get('/secret-plan', { headers: who });
+      assert.equal(redirect.status, 302);
+      assert.equal(redirect.headers.get('location'), 'https://secret.local');
+    }
+  });
+
+  test('duplicate check does not reveal the private owner', async () => {
+    const res = await api('GET', '/links/validate?shortName=secret-plan', undefined, OTHER_EMPLOYEE);
+    assert.equal(res.body.valid, false);
+    assert.doesNotMatch(res.body.error, /nikhil/);
+    const create = await api('POST', '/links', { shortName: 'secret-plan', targetUrl: 'https://a.local' }, OTHER_EMPLOYEE);
+    assert.equal(create.status, 409);
+    assert.doesNotMatch(create.body.error, /nikhil/);
+  });
+
+  test('stats only count what you can see', async () => {
+    const mine = (await api('GET', '/stats', undefined, EMPLOYEE)).body.totalLinks;
+    const theirs = (await api('GET', '/stats', undefined, OTHER_EMPLOYEE)).body.totalLinks;
+    assert.equal(mine, theirs + 1);
+  });
+});
+
+describe('insights', () => {
+  test('missing links are recorded, admin-only, and drop off once created', async () => {
+    await get('/payroll-help');
+    await get('/payroll-help');
+    await get('/PAYROLL-HELP/anything');
+    await get('/x'); // too short to be a valid name: not recorded
+
+    assert.equal((await api('GET', '/insights/missing', undefined, EMPLOYEE)).status, 403);
+    let list = (await api('GET', '/insights/missing')).body as Array<{ shortName: string; requestCount: number }>;
+    assert.equal(list.find((i) => i.shortName === 'payroll-help')?.requestCount, 3);
+    assert.ok(!list.some((i) => i.shortName === 'x'));
+
+    await api('POST', '/links', { shortName: 'payroll-help', targetUrl: 'https://help.local' });
+    list = (await api('GET', '/insights/missing')).body;
+    assert.ok(!list.some((i) => i.shortName === 'payroll-help'));
+
+    await get('/typo-name');
+    assert.equal((await api('DELETE', '/insights/missing/typo-name')).status, 204);
+    assert.ok(!(await api('GET', '/insights/missing')).body.some((i: { shortName: string }) => i.shortName === 'typo-name'));
+  });
+
+  test('click history per day, per link and overall', async () => {
+    await get('/holidays');
+    await get('/holidays', { headers: EMPLOYEE });
+
+    const series = (await api('GET', '/links/seed-09-holidays/clicks?days=7')).body as Array<{
+      date: string;
+      clicks: number;
+      uniqueUsers: number;
+    }>;
+    assert.equal(series.length, 7);
+    const today = series[series.length - 1];
+    assert.equal(today.date, new Date().toISOString().slice(0, 10));
+    assert.ok(today.clicks >= 2);
+    assert.ok(today.uniqueUsers >= 1);
+
+    const stats = (await api('GET', '/stats')).body;
+    assert.equal(stats.dailyClicks.length, 30);
+    assert.ok(stats.dailyClicks[29].clicks >= 2);
+  });
+
+  test('deleting a link removes its click history', async () => {
+    const created = await api('POST', '/links', { shortName: 'temp-clicks', targetUrl: 'https://t.local' });
+    await get('/temp-clicks');
+    const count = () =>
+      (db.prepare('SELECT COUNT(*) AS n FROM click_events WHERE link_id = ?').get(created.body.id) as { n: number }).n;
+    assert.equal(count(), 1);
+    await api('DELETE', `/links/${created.body.id}`);
+    assert.equal(count(), 0);
   });
 });
