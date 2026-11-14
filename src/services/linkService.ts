@@ -150,13 +150,6 @@ export async function getCategories(): Promise<string[]> {
 }
 
 /**
- * Reset links to initial seed data (admin only; the server must have ALLOW_DATA_RESET=true).
- */
-export async function resetToDefaults(): Promise<GoLink[]> {
-  return apiRequest<GoLink[]>('/reset', { method: 'POST' });
-}
-
-/**
  * Export links as JSON.
  */
 export async function exportLinks(): Promise<string> {

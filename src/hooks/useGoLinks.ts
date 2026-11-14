@@ -5,7 +5,6 @@ import {
   deleteLink,
   getCategories,
   getLinks,
-  resetToDefaults,
   updateLink,
 } from '../services/linkService';
 import { CreateLinkInput, GoLink, LinkVisibility, SortField, SortOrder, UpdateLinkInput } from '../types/link';
@@ -97,11 +96,6 @@ export function useGoLinks() {
     return updated;
   };
 
-  const handleResetToSeeds = async (): Promise<void> => {
-    await resetToDefaults();
-    await fetchLinks();
-  };
-
   const handleBulkImport = async (
     rows: Array<{
       shortName: string;
@@ -128,7 +122,6 @@ export function useGoLinks() {
     update: handleUpdate,
     remove: handleDelete,
     toggleActive: handleToggleActive,
-    resetSeeds: handleResetToSeeds,
     bulkImport: handleBulkImport,
   };
 }

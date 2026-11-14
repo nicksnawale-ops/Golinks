@@ -25,6 +25,8 @@ export interface DemoState {
   notFound: Record<string, { requestCount: number; firstRequestedAt: string; lastRequestedAt: string }>;
   clicks: Array<{ linkId: string; userId: string | null; timestamp: string }>;
   sessionUserId: string | null;
+  /** Set once sample data from earlier versions has been cleaned out. */
+  samplesRemoved?: boolean;
 }
 
 /** Same demo accounts and passwords as the server's DEMO_MODE. */
@@ -36,22 +38,54 @@ export const DEMO_PASSWORDS: Record<string, { label: string; password: string }>
 const STORAGE_KEY = 'golinks_browser_demo_v1';
 const MAX_CLICK_EVENTS = 5000;
 
+/** A new browser starts with no links and no history, just the two demo accounts to sign in with. */
 function freshState(): DemoState {
   const now = new Date().toISOString();
   return {
     version: 1,
-    links: SEED_LINKS.map((l) => ({ ...l })),
-    users: MOCK_USERS.map((u) => ({
+    links: [],
+    users: MOCK_USERS.filter((u) => DEMO_PASSWORDS[u.id]).map((u) => ({
       ...u,
-      password: DEMO_PASSWORDS[u.id]?.password ?? null,
+      password: DEMO_PASSWORDS[u.id].password,
       isActive: true,
       lastLoginAt: null,
       createdAt: now,
     })),
-    audit: SEED_AUDIT_LOGS.map((a) => ({ ...a })),
+    audit: [],
     notFound: {},
     clicks: [],
     sessionUserId: null,
+    samplesRemoved: true,
+  };
+}
+
+/**
+ * Browsers that opened an earlier version were given sample links with made-up click counts.
+ * Removes them once, keeping everything the visitor added or changed themselves.
+ */
+function removeSamples(state: DemoState): DemoState {
+  const samples = new Map(SEED_LINKS.map((l) => [l.id, l]));
+  const sampleAudit = new Set(SEED_AUDIT_LOGS.map((a) => a.id));
+
+  const links = state.links.flatMap((l) => {
+    const sample = samples.get(l.id);
+    if (!sample) return [l];
+    if (l.targetUrl === sample.targetUrl) return []; // untouched sample
+    // An edited sample is now real: keep it, but only count clicks that actually happened.
+    const real = state.clicks.filter((c) => c.linkId === l.id);
+    return [{ ...l, clickCount: real.length, lastAccessedAt: real.length ? real[real.length - 1].timestamp : null }];
+  });
+  const kept = new Set(links.map((l) => l.id));
+  const owners = new Set(links.map((l) => l.owner.toLowerCase()));
+
+  return {
+    ...state,
+    links,
+    audit: state.audit.filter((a) => !sampleAudit.has(a.id)),
+    clicks: state.clicks.filter((c) => kept.has(c.linkId)),
+    // Sample people who can't sign in and own nothing go too; demo accounts stay.
+    users: state.users.filter((u) => DEMO_PASSWORDS[u.id] || u.password || owners.has(u.email.toLowerCase()) || !MOCK_USERS.some((m) => m.id === u.id)),
+    samplesRemoved: true,
   };
 }
 
@@ -60,7 +94,9 @@ function load(): DemoState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as DemoState;
-      if (parsed && parsed.version === 1 && Array.isArray(parsed.links)) return parsed;
+      if (parsed && parsed.version === 1 && Array.isArray(parsed.links)) {
+        return parsed.samplesRemoved ? parsed : removeSamples(parsed);
+      }
     }
   } catch {
     // storage unavailable or corrupt: start fresh
@@ -74,6 +110,10 @@ function load(): DemoState {
  */
 export class DemoDB {
   state: DemoState = load();
+
+  constructor() {
+    this.save(); // persist the one-time sample cleanup straight away
+  }
   private depth = 0;
 
   save(): void {

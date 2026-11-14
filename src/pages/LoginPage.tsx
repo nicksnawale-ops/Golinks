@@ -181,7 +181,7 @@ export const LoginPage: React.FC = () => {
               </ul>
               <p className="mt-4 text-xs text-slate-400 dark:text-slate-500">
                 {usesBrowserBackend()
-                  ? 'This online demo runs in your browser with sample links. Changes stay on this device.'
+                  ? 'This online version runs in your browser. Links you add are saved on this device only.'
                   : 'Demo accounts are for trying GoLinks out. Your administrator turns them off before real use.'}
               </p>
             </section>

@@ -40,7 +40,7 @@ export function openDatabase(dbPath: string, options: OpenDatabaseOptions = {}):
   if (applied.length > 0) log(`Applied database migrations: ${applied.join(', ')}`);
 
   // Only seed samples on a brand-new database, so deleted samples never come back.
-  if (applied.includes(1) && options.seedSampleData !== false) {
+  if (applied.includes(1) && options.seedSampleData === true) {
     seedSampleUsers(db);
     const count = seedSampleLinks(db);
     log(`Seeded ${count} sample links`);

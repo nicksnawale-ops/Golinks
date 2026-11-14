@@ -62,7 +62,7 @@ export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitl
           <div className="h-full rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
         ) : total === 0 ? (
           <div className="h-full flex items-center justify-center text-sm text-slate-500 text-center px-6">
-            No clicks recorded in this period yet. History starts from this update, so it fills in as people use links.
+            No clicks in this period yet. Daily clicks appear here as people open go links.
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
