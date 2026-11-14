@@ -43,9 +43,12 @@ export const LinkForm: React.FC<LinkFormProps> = ({
   const [category, setCategory] = useState(initialValues?.category || 'General');
   const [customCategory, setCustomCategory] = useState('');
   const [showCustomCategory, setShowCustomCategory] = useState(false);
-  const [owner, setOwner] = useState(
-    initialValues?.owner || currentUser?.email || 'nikhil.nawale01@gmail.com'
-  );
+  const [owner, setOwner] = useState(initialValues?.owner || currentUser?.email || '');
+
+  // The signed-in user can load after the form opens (e.g. opening #/create directly).
+  useEffect(() => {
+    if (!initialValues?.owner && currentUser?.email) setOwner((prev) => prev || currentUser.email);
+  }, [currentUser?.email, initialValues?.owner]);
   const [visibility, setVisibility] = useState<LinkVisibility>(initialValues?.visibility || 'public');
   const [isActive, setIsActive] = useState<boolean>(
     initialValues?.isActive !== undefined ? initialValues.isActive : true

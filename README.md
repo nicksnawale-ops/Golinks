@@ -68,7 +68,7 @@ npm run dev
 
 - Open http://localhost:3000 for the UI.
 - Try real redirects against the server directly: `curl -I http://localhost:3001/hr`.
-- The dev database lives at `./data/golinks.db` and is seeded with sample links the first time.
+- The dev database lives at `./data/golinks.db` and starts empty (set `SEED_SAMPLE_DATA=true` before the first run if you want sample links to play with).
 
 Useful scripts:
 
@@ -145,8 +145,7 @@ All settings come from environment variables (or `.env`). See [`.env.example`](.
 | `HOST` | `0.0.0.0` | Interface to bind. |
 | `DB_PATH` | `./data/golinks.db` | SQLite file (directory is created automatically). |
 | `STATIC_DIR` | `./dist` | Built React app. |
-| `SEED_SAMPLE_DATA` | `true` | Seed sample links when the database is first created. |
-| `ALLOW_DATA_RESET` | `false` | Enables the admin "Reset sample shortcuts" / audit-reset buttons. Leave `false` in production. |
+| `SEED_SAMPLE_DATA` | `false` | Insert sample links into a brand-new database, for evaluation only. A real installation starts empty. |
 | `TRUST_PROXY` | `false` | Set `true` behind a reverse proxy. |
 | `LOG_REQUESTS` | `true` | One log line per request, including the 302 target. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | *(empty)* | First admin account, created or promoted at start-up. The password is only applied while the account has none. Remove `ADMIN_PASSWORD` after first sign-in. |
@@ -179,7 +178,7 @@ node dist-server/db/cli.js migrate      # production build
 
 To change the schema, append a new entry with the next `version` to `MIGRATIONS`. Never edit one that has already shipped.
 
-**Seeding**: a brand-new database gets the sample links automatically (unless `SEED_SAMPLE_DATA=false`). To re-add any missing sample links later: `npm run db:seed` (existing shortNames are left alone).
+**Seeding**: a brand-new database starts empty. For evaluation you can add the sample links with `SEED_SAMPLE_DATA=true` on first start or `npm run db:seed` later (existing shortNames are left alone); `remove-samples` takes them out again.
 
 ### Backup
 
@@ -336,7 +335,6 @@ All endpoints are JSON. Errors look like `{ "error": "message" }`. Identity come
 | GET | `/api/stats` | any | Totals, per-category counts, top and recent links, `dailyClicks` (30 days), all limited to links the caller can see |
 | GET | `/api/insights/missing?limit=` | admin | Most requested go names that don't exist |
 | DELETE | `/api/insights/missing/:shortName` | admin | Dismiss one |
-| POST | `/api/reset`, `/api/audit/reset`; DELETE `/api/audit` | admin | Only when `ALLOW_DATA_RESET=true` |
 
 Server-side validation: shortName is 2–50 characters of `a-z 0-9 - _ /` (normalised to lowercase, with a leading `go/` stripped), not reserved, no `//`, and unique ignoring case. `targetUrl` must be a valid `http://` or `https://` URL (with `%s` / `{query}` placeholders allowed), at most 2048 characters. Field types and lengths are also enforced.
 
@@ -349,12 +347,27 @@ curl -b jar -X POST http://go/api/links -H 'Content-Type: application/json' \
   -d '{"shortName":"standup","targetUrl":"https://meet.company.internal/standup","category":"Engineering"}'
 ```
 
+## Starting with real data
+
+GoLinks starts empty: no sample links, no made-up click counts and no sample audit history. Every number on the dashboard comes from links people create and clicks that actually happen.
+
+To fill it quickly, an admin can use **Bulk CSV Import** on the dashboard with your existing list of shortcuts (columns: `shortName,targetUrl,description,category`).
+
+If a database was created by an earlier version that seeded the sample links, remove them with:
+
+```bash
+node dist-server/db/cli.js remove-samples            # bare metal
+docker compose exec golinks node dist-server/db/cli.js remove-samples
+```
+
+It deletes sample links that were never changed and the sample audit events. Sample links someone edited are kept, with their made-up click counts replaced by the clicks actually recorded. Safe to run more than once.
+
 ## Online demo on Vercel (no server)
 
 The repo includes `vercel.json`, so it can be deployed to Vercel as-is for an online demo. Vercel only serves static files, so on `*.vercel.app` addresses the app runs its backend **inside the browser**:
 
 - The real link rules from `server/services` (validation, permissions, private links, audit, import) run in the page. Their database calls are swapped at build time for browser storage (`src/demo/repositories`, see `vite.config.ts`).
-- Each visitor gets their own copy of the sample links and the two demo accounts (`admin@company.internal` / `Admin@12345`, `nikhil.nawale01@gmail.com` / `Employee@12345`), shown on the sign-in page with one-tap sign-in. Changes stay in that browser.
+- Each visitor starts with no links, plus the two demo accounts (`admin@company.internal` / `Admin@12345`, `nikhil.nawale01@gmail.com` / `Employee@12345`), shown on the sign-in page with one-tap sign-in. Changes stay in that browser.
 - Typing `https://<your-app>.vercel.app/hr` opens the app, which then redirects to the target (no instant server-side 302).
 - Sign-in here is simulated and protects nothing. Don't put real internal URLs in the online demo.
 
@@ -370,7 +383,7 @@ Everyone signs in with an email and password. Sign-in sets an `httpOnly`, `SameS
 
 **Demo mode:** for trying the app out, set `DEMO_MODE=true`. The sign-in page then lists a demo admin and a demo employee account that fill in with one tap. Turn it off before real use; at the next start the demo passwords are removed.
 
-**Adding people:** admins use the **Users** page to add accounts with an initial password, change roles, reset passwords and deactivate leavers. Deactivating or resetting a password signs that person out immediately; their links keep working. The sample identities seeded with the sample links have no password and can't sign in unless an admin sets one.
+**Adding people:** admins use the **Users** page to add accounts with an initial password, change roles, reset passwords and deactivate leavers. Deactivating or resetting a password signs that person out immediately; their links keep working.
 
 - **Admin**: manages any link and user, sees private links, reassigns owners, views the audit log and missing-links report, imports and exports.
 - **Employee**: creates links (always owned by themselves), edits/deletes only their own, and sees public links plus their own private ones.

@@ -5,8 +5,7 @@ import { recordLinkClick } from '../repositories/linkRepository';
 import { currentActor, requireActor, requireAdmin, sameOriginGuard } from '../auth';
 import { ServerConfig } from '../config';
 import { DB } from '../db/database';
-import { resetAuditLog, resetToSampleLinks } from '../db/seed';
-import { badRequest, forbidden, notFound } from '../errors';
+import { badRequest, notFound } from '../errors';
 import { authRouter } from './auth';
 import { usersRouter } from './users';
 import { parseCreateLinkInput, parseUpdateLinkInput } from '../services/linkInput';
@@ -180,34 +179,6 @@ export function apiRouter(db: DB, config: ServerConfig): Router {
   router.delete('/insights/missing/:shortName', (req, res) => {
     requireAdmin(res);
     if (!dismissMissingLink(db, req.params.shortName)) throw notFound('Not in the missing-links list.');
-    res.status(204).end();
-  });
-
-  // ---- Destructive admin actions (disabled unless ALLOW_DATA_RESET=true) ----
-  const requireReset = () => {
-    if (!config.allowDataReset) {
-      throw forbidden('Data reset is disabled on this server (set ALLOW_DATA_RESET=true to enable).');
-    }
-  };
-
-  router.post('/reset', (_req, res) => {
-    requireAdmin(res);
-    requireReset();
-    resetToSampleLinks(db);
-    res.json(queryLinks(db));
-  });
-
-  router.delete('/audit', (_req, res) => {
-    requireAdmin(res);
-    requireReset();
-    resetAuditLog(db, false);
-    res.status(204).end();
-  });
-
-  router.post('/audit/reset', (_req, res) => {
-    requireAdmin(res);
-    requireReset();
-    resetAuditLog(db, true);
     res.status(204).end();
   });
 

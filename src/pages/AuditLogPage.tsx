@@ -8,14 +8,13 @@ import {
   Clock,
   Filter,
   History,
-  RotateCcw,
   Search,
   Shield,
   Trash2,
   User,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { clearAuditLogs, getAuditLogs, resetAuditLogs } from '../services/auditService';
+import { getAuditLogs } from '../services/auditService';
 import { AuditAction, AuditLogEntry } from '../types/audit';
 import { formatFullDateTime, formatRelativeTime } from '../utils/formatters';
 
@@ -51,17 +50,6 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     fetchLogs();
   }, [actionFilter, actorSearch, shortNameSearch]);
-
-  const handleResetLogs = async () => {
-    if (confirm('Reset audit log history to seed events?')) {
-      try {
-        await resetAuditLogs();
-        await fetchLogs();
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to reset audit log');
-      }
-    }
-  };
 
   if (!isAdmin) {
     return (
@@ -113,14 +101,6 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleResetLogs}
-          className="self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Demo Logs</span>
-        </button>
       </div>
 
       {/* Filter Controls */}

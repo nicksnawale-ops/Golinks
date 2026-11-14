@@ -10,13 +10,3 @@ export async function getAuditLogs(params?: AuditFilterParams): Promise<AuditLog
   return apiRequest<AuditLogEntry[]>(`/audit${buildQuery({ ...params })}`);
 }
 
-/**
- * Clear or reset audit logs (admin only; the server must have ALLOW_DATA_RESET=true).
- */
-export async function clearAuditLogs(): Promise<void> {
-  await apiRequest<void>('/audit', { method: 'DELETE' });
-}
-
-export async function resetAuditLogs(): Promise<void> {
-  await apiRequest<void>('/audit/reset', { method: 'POST' });
-}

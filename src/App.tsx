@@ -29,7 +29,6 @@ function GoLinksApp() {
     update,
     remove,
     toggleActive,
-    resetSeeds,
     bulkImport,
   } = useGoLinks();
 
@@ -171,15 +170,6 @@ function GoLinksApp() {
     navigateTo('redirect', { shortPath: clean });
   };
 
-  const handleResetSeeds = async () => {
-    try {
-      await resetSeeds();
-      showToast('Reset seed shortcuts to initial corporate configuration', 'info');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Failed to reset shortcuts', 'error');
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors">
       <Navbar
@@ -211,7 +201,6 @@ function GoLinksApp() {
             onNavigate={navigateTo}
             onDelete={remove}
             onToggleActive={toggleActive}
-            onResetSeeds={handleResetSeeds}
             onResolve={handleResolvePath}
             onBulkImport={bulkImport}
           />
@@ -331,14 +320,6 @@ function GoLinksApp() {
               className="hover:text-slate-900 dark:hover:text-white transition-colors"
             >
               LAN DNS Documentation
-            </button>
-            <span aria-hidden="true">·</span>
-            <button
-              type="button"
-              onClick={handleResetSeeds}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              Reset Sample Shortcuts
             </button>
           </div>
         </div>

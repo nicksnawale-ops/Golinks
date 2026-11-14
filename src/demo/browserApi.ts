@@ -7,7 +7,6 @@
  * permission checks mirror server/routes/*.ts. Sign-in is simulated: it protects nothing, because
  * all data lives in the visitor's own browser.
  */
-import { SEED_AUDIT_LOGS, SEED_LINKS } from '../../shared/seedData';
 import { User, UserRole } from '../../shared/types/auth';
 import { validateShortNameFormat } from '../../shared/validation';
 import { badRequest, conflict, forbidden, HttpError, notFound, unauthorized } from '../../server/errors';
@@ -314,23 +313,6 @@ function route(db: DemoDB, method: string, path: string, q: URLSearchParams, raw
     return noContent();
   }
 
-  // Demo data can always be reset (there is nothing real to protect).
-  if (is('POST', 'reset')) {
-    requireAdmin(db);
-    db.mutate((s) => (s.links = SEED_LINKS.map((l) => ({ ...l }))));
-    return ok(queryLinks(db as any, {}, currentActor(db)));
-  }
-  if (is('DELETE', 'audit')) {
-    requireAdmin(db);
-    db.mutate((s) => (s.audit = []));
-    return noContent();
-  }
-  if (is('POST', 'audit', 'reset')) {
-    requireAdmin(db);
-    db.mutate((s) => (s.audit = SEED_AUDIT_LOGS.map((a) => ({ ...a }))));
-    return noContent();
-  }
-
   throw notFound('Unknown API endpoint.');
 }
 
@@ -350,6 +332,6 @@ export async function browserApiRequest(method: string, url: string, body?: unkn
       return { status: err.status, data: { error: err.message, ...(err.details ? { details: err.details } : {}) } };
     }
     console.error('[browser demo]', err);
-    return { status: 500, data: { error: 'Something went wrong in the demo. Try again, or reset the demo data.' } };
+    return { status: 500, data: { error: 'Something went wrong in the demo. Try again, or reload the page.' } };
   }
 }

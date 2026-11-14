@@ -48,7 +48,6 @@ before(async () => {
     dbPath: ':memory:',
     staticDir,
     seedSampleData: true,
-    allowDataReset: false,
     trustProxy: false,
     logRequests: false,
     sessionTtlHours: 12,
@@ -327,9 +326,10 @@ describe('API', () => {
     assert.ok(body.topLinks.length > 0);
   });
 
-  test('reset is disabled unless ALLOW_DATA_RESET=true', async () => {
-    assert.equal((await api('POST', '/reset')).status, 403);
-    assert.equal((await api('POST', '/audit/reset')).status, 403);
+  test('the old reset-to-samples endpoints are gone', async () => {
+    assert.equal((await api('POST', '/reset')).status, 404);
+    assert.equal((await api('POST', '/audit/reset')).status, 404);
+    assert.equal((await api('DELETE', '/audit')).status, 404);
   });
 
   test('malformed JSON → 400', async () => {
@@ -564,5 +564,48 @@ describe('demo mode', () => {
     assert.equal(log.length, 2);
     for (const a of accounts) assert.equal(getUserCredentials(demoDb, a.email)?.passwordHash, null);
     demoDb.close();
+  });
+});
+
+describe('real data only', () => {
+  test('a new database starts empty unless SEED_SAMPLE_DATA is on', async () => {
+    const { loadConfig } = await import('../server/config');
+    assert.equal(loadConfig({}).seedSampleData, false);
+    const empty = openDatabase(':memory:', {});
+    assert.equal((empty.prepare('SELECT COUNT(*) AS n FROM links').get() as { n: number }).n, 0);
+    assert.equal((empty.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+    assert.equal((empty.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n, 0);
+    empty.close();
+  });
+
+  test('remove-samples keeps real and edited links, with real click counts only', async () => {
+    const { removeSampleData } = await import('../server/db/seed');
+    const seeded = openDatabase(':memory:', { seedSampleData: true });
+    const { setPasswordHash } = await import('../server/repositories/userRepository');
+    setPasswordHash(seeded, 'user_admin', 'x'); // a sample account someone uses: kept
+    seeded.prepare("UPDATE links SET target_url = 'https://real-hr.local' WHERE id = 'seed-01-hr'").run();
+    seeded
+      .prepare(
+        `INSERT INTO links (id, short_name, target_url, description, category, owner, visibility, is_active, click_count,
+         last_accessed_at, created_at, updated_at, tags)
+         VALUES ('real-1', 'mine', 'https://mine.local', '', 'General', 'admin@company.internal', 'public', 1, 3, NULL,
+         '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', '[]')`
+      )
+      .run();
+    seeded.prepare("INSERT INTO click_events (link_id, user_id, timestamp) VALUES ('seed-01-hr', NULL, '2026-11-01T00:00:00.000Z')").run();
+
+    const r = removeSampleData(seeded);
+    const names = (seeded.prepare('SELECT short_name, click_count FROM links ORDER BY short_name').all() as Array<{
+      short_name: string;
+      click_count: number;
+    }>).map((l) => [l.short_name, l.click_count]);
+    assert.deepEqual(names, [['hr', 1], ['mine', 3]]);
+    assert.ok(r.links >= 9);
+    assert.equal((seeded.prepare('SELECT COUNT(*) AS n FROM audit_log').get() as { n: number }).n, 0);
+    const users = (seeded.prepare('SELECT id FROM users ORDER BY id').all() as Array<{ id: string }>).map((u) => u.id);
+    assert.ok(users.includes('user_admin'));
+    assert.ok(!users.includes('user_david'));
+    assert.deepEqual(removeSampleData(seeded), { links: 0, audit: 0, users: 0 }, 'safe to run twice');
+    seeded.close();
   });
 });

@@ -23,8 +23,8 @@ export interface ServerConfig {
   port: number;
   dbPath: string;
   staticDir: string;
+  /** Insert the sample links into a brand-new database (evaluation only; off by default). */
   seedSampleData: boolean;
-  allowDataReset: boolean;
   trustProxy: boolean;
   logRequests: boolean;
   /** Session lifetime in hours. */
@@ -49,8 +49,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     port,
     dbPath: path.resolve(env.DB_PATH || './data/golinks.db'),
     staticDir: path.resolve(env.STATIC_DIR || './dist'),
-    seedSampleData: bool(env.SEED_SAMPLE_DATA, true),
-    allowDataReset: bool(env.ALLOW_DATA_RESET, false),
+    seedSampleData: bool(env.SEED_SAMPLE_DATA, false),
     trustProxy: bool(env.TRUST_PROXY, false),
     logRequests: bool(env.LOG_REQUESTS, true),
     sessionTtlHours: int('SESSION_TTL_HOURS', env.SESSION_TTL_HOURS, 12, 1, 24 * 90),

@@ -1,7 +1,8 @@
 /**
  * Database maintenance CLI.
  *   migrate          Create the database file if needed and apply pending migrations
- *   seed             Insert the sample links (skips shortNames that already exist)
+ *   seed             Insert the sample links (evaluation only; skips shortNames that already exist)
+ *   remove-samples   Delete sample links/audit events/users from a database that was seeded earlier
  *   backup <file>    Write a consistent online backup (safe while the server is running)
  */
 import 'dotenv/config';
@@ -9,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig } from '../config';
 import { openDatabase } from './database';
-import { seedSampleLinks } from './seed';
+import { removeSampleData, seedSampleLinks } from './seed';
 
 async function main() {
   const [command, arg] = process.argv.slice(2);
@@ -29,6 +30,13 @@ async function main() {
       db.close();
       break;
     }
+    case 'remove-samples': {
+      const db = openDatabase(config.dbPath, { seedSampleData: false, log });
+      const r = removeSampleData(db);
+      console.log(`Removed ${r.links} sample links, ${r.audit} sample audit events and ${r.users} sample users`);
+      db.close();
+      break;
+    }
     case 'backup': {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const target = path.resolve(arg || path.join(path.dirname(config.dbPath), 'backups', `golinks-${stamp}.db`));
@@ -40,7 +48,7 @@ async function main() {
       break;
     }
     default:
-      console.error('Usage: cli.ts <migrate|seed|backup [file]>');
+      console.error('Usage: cli.ts <migrate|seed|remove-samples|backup [file]>');
       process.exit(1);
   }
 }
