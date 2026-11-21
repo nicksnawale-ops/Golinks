@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CsvImportModal } from './components/CsvImportModal';
-import { ActivePage, Navbar } from './components/Navbar';
+import { ActivePage, Navbar, SIDEBAR_OFFSET_CLASS } from './components/Navbar';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
@@ -171,7 +171,7 @@ function GoLinksApp() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 selection:bg-blue-100 dark:selection:bg-blue-900 selection:text-blue-900 dark:selection:text-blue-100 transition-colors">
+    <div className="min-h-screen flex flex-col bg-ve-gray-50 text-ve-gray-700">
       <Navbar
         currentPage={currentPage}
         onNavigate={navigateTo}
@@ -179,7 +179,7 @@ function GoLinksApp() {
         onOpenCsvImport={() => setIsCsvModalOpen(true)}
       />
 
-      <main className="flex-1">
+      <main className={`flex-1 pb-12 ${SIDEBAR_OFFSET_CLASS}`}>
         {currentPage === 'dashboard' && (
           <DashboardPage
             links={links}
@@ -280,50 +280,6 @@ function GoLinksApp() {
         }}
       />
 
-      {/* Corporate LAN Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 py-6 mt-12 text-xs text-slate-500 dark:text-slate-400 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-slate-800 dark:text-slate-200">GoLinks Enterprise</span>
-            <span aria-hidden="true">·</span>
-            <span>Internal LAN Shortcut Service</span>
-          </div>
-
-          <div className="flex items-center gap-4 flex-wrap justify-center">
-            <button
-              type="button"
-              onClick={() => navigateTo('dashboard')}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              Dashboard
-            </button>
-            <span aria-hidden="true">·</span>
-            <button
-              type="button"
-              onClick={() => navigateTo('directory')}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              Directory
-            </button>
-            <span aria-hidden="true">·</span>
-            <button
-              type="button"
-              onClick={() => navigateTo('help')}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              How to Use
-            </button>
-            <span aria-hidden="true">·</span>
-            <button
-              type="button"
-              onClick={() => navigateTo('setup-guide')}
-              className="hover:text-slate-900 dark:hover:text-white transition-colors"
-            >
-              LAN DNS Documentation
-            </button>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
@@ -333,8 +289,8 @@ function AuthGate() {
   const { currentUser, loading } = useAuth();
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="w-6 h-6 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" aria-label="Loading" />
+      <div className="min-h-screen flex items-center justify-center bg-ve-gray-50">
+        <div className="w-6 h-6 rounded-full border-2 border-ve-blue border-t-transparent animate-spin" aria-label="Loading" />
       </div>
     );
   }

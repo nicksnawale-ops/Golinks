@@ -1,35 +1,136 @@
 @import "tailwindcss";
 
-@variant dark (&:where(.dark, .dark *));
+/* ===========================================================================
+ * VisionEdge Design System (UDS) tokens: https://visionedge-uds.vercel.app
+ * Palette is limited to the brand colours plus the grey scale. Light theme only.
+ *   60% neutrals (white canvas, Gray 50 sections) · 30% Deep Navy · 10% Royal Blue + Cyan
+ * ========================================================================= */
+@theme {
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+
+  /* Brand */
+  --color-ve-navy: #0B2D6B;   /* sidebar, headings, primary hover, critical alerts, error states */
+  --color-ve-blue: #1E63FF;   /* primary buttons, links, focus, selected states */
+  --color-ve-cyan: #00C6FF;   /* live/active indicators; only as fill or on dark surfaces, never text on white */
+  --color-ve-black: #000000;  /* media and modal scrim only */
+
+  /* Tints for subtle surfaces (brand colour mixed with white) */
+  --color-ve-blue-50: #F3F7FF;
+  --color-ve-blue-100: #E9EFFF;
+  --color-ve-blue-200: #CEDDFF;
+  --color-ve-blue-300: #A5C1FF;
+  --color-ve-blue-400: #6191FF;
+  --color-ve-navy-50: #F3F4F7;
+  --color-ve-navy-100: #E7EAF0;
+  --color-ve-navy-200: #CED5E1;
+  --color-ve-navy-300: #9EABC4;
+  --color-ve-navy-400: #6D81A6;
+  --color-ve-cyan-50: #E6F9FF;
+  --color-ve-cyan-100: #CCF4FF;
+  --color-ve-cyan-200: #99E8FF;
+  --color-ve-cyan-300: #66DDFF;
+
+  /* Neutrals */
+  --color-ve-gray-50: #F7F9FC;   /* subtle sections, table headers, hover rows */
+  --color-ve-gray-100: #EEF1F6;  /* disabled fills, secondary surfaces */
+  --color-ve-gray-200: #DDE2EA;  /* card borders, dividers */
+  --color-ve-gray-300: #C3CAD5;  /* decorative borders, skeletons */
+  --color-ve-gray-400: #8C95A6;  /* input borders (3:1), inactive icons */
+  --color-ve-gray-500: #6B7485;  /* placeholders, captions */
+  --color-ve-gray-600: #4B5465;  /* secondary text, default icons */
+  --color-ve-gray-700: #353D4C;  /* body text */
+  --color-ve-gray-800: #1F2633;  /* tooltips */
+  --color-ve-gray-900: #121722;  /* headings, labels, destructive buttons */
+
+  /* Type scale: Small 12/16 · Body 14/20 · Body Large 16/24 · H3 20/28 · H2 24/32 · H1 28/36 · Display/KPI 32/40 */
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 14px;
+  --text-sm--line-height: 20px;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-lg: 20px;
+  --text-lg--line-height: 28px;
+  --text-xl: 20px;
+  --text-xl--line-height: 28px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 32px;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
+  --text-4xl: 32px;
+  --text-4xl--line-height: 40px;
+
+  /* Radius: sm 4 (tags) · md/lg 8 (buttons, inputs) · xl 12 (cards) · 2xl 16 (modals) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 16px;
+
+  /* Elevation, tinted with Deep Navy */
+  --shadow-xs: 0 1px 3px rgba(11, 45, 107, 0.08);
+  --shadow-sm: 0 1px 3px rgba(11, 45, 107, 0.08);
+  --shadow: 0 1px 3px rgba(11, 45, 107, 0.08);
+  --shadow-md: 0 4px 12px rgba(11, 45, 107, 0.12);
+  --shadow-lg: 0 4px 12px rgba(11, 45, 107, 0.12);
+  --shadow-xl: 0 12px 32px rgba(11, 45, 107, 0.18);
+  --shadow-2xl: 0 12px 32px rgba(11, 45, 107, 0.18);
+}
 
 @layer base {
+  html,
   body {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    color: #0f172a;
-    background-color: #f8fafc;
+    font-family: var(--font-sans);
+    color: var(--color-ve-gray-700);
+    background-color: #ffffff;
+    color-scheme: light;
     -webkit-font-smoothing: antialiased;
   }
 
-  .dark body {
-    color: #f8fafc;
-    background-color: #090d16;
+  h1, h2, h3, h4 {
+    color: var(--color-ve-gray-900);
   }
 
   code, kbd, samp, pre {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-family: var(--font-mono);
+  }
+
+  /* UDS focus ring: 2px white gap, then 2px Royal Blue */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #1e63ff;
+  }
+
+  ::placeholder {
+    color: var(--color-ve-gray-500);
+  }
+
+  ::selection {
+    background: var(--color-ve-blue-200);
+    color: var(--color-ve-gray-900);
   }
 }
 
+/* Scrollbars */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c3cad5; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #8c95a6; }
+.ve-sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.ve-sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
 /* ---------------------------------------------------------------------------
  * Sign-in page: route switchboard backdrop (RouteSwitchboard.tsx)
- * Palette: night route #0B1430, signal blue #3D6BFF, trace cyan #4FD1E6,
- * arrival mint #5BE3A6, paper #F6F7FB, ink #18213A.
+ * Palette: VisionEdge UDS only. Deep Navy surface #0B2D6B, Royal Blue #1E63FF,
+ * Cyan #00C6FF (on dark only), white and the grey scale.
  * ------------------------------------------------------------------------- */
 .gl-login-art {
   background:
-    radial-gradient(120% 80% at 0% 0%, rgba(61, 107, 255, 0.28) 0%, transparent 55%),
-    radial-gradient(90% 70% at 100% 100%, rgba(79, 209, 230, 0.16) 0%, transparent 60%),
-    #0b1430;
+    radial-gradient(120% 80% at 0% 0%, rgba(30, 99, 255, 0.35) 0%, transparent 55%),
+    radial-gradient(90% 70% at 100% 100%, rgba(0, 198, 255, 0.14) 0%, transparent 60%),
+    #0b2d6b;
 }
 
 .gl-switchboard {
@@ -38,15 +139,15 @@
   flex-direction: column;
   width: 100%;
   height: 100%;
-  color: #e6ebff;
+  color: #ffffff;
 }
 
 .gl-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(140, 160, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(140, 160, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 32px 32px;
   mask-image: radial-gradient(75% 65% at 50% 55%, #000 30%, transparent 100%);
   animation: gl-grid-drift 40s linear infinite;
@@ -64,15 +165,15 @@
   padding: 18px 22px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(160, 180, 255, 0.18);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px -24px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px -24px rgba(11, 45, 107, 0.4);
   backdrop-filter: blur(8px);
 }
 .gl-addressbar__lock {
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  border: 2px solid #4fd1e6;
+  border: 2px solid #00c6ff;
   flex: none;
 }
 .gl-addressbar__text {
@@ -87,14 +188,14 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.gl-addressbar__go { color: #7f97ff; }
+.gl-addressbar__go { color: #c3cad5; }
 .gl-caret {
   display: inline-block;
   width: 0.08em;
   height: 0.95em;
   margin-left: 0.06em;
   vertical-align: -0.1em;
-  background: #4fd1e6;
+  background: #00c6ff;
   animation: gl-blink 0.9s steps(1) infinite;
 }
 @keyframes gl-blink { 50% { opacity: 0; } }
@@ -104,11 +205,11 @@
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 6px;
-  color: rgba(230, 235, 255, 0.35);
+  color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.05);
   transition: color 0.3s, background 0.3s;
 }
-.gl-addressbar__status.is-on { color: #0b1430; background: #5be3a6; }
+.gl-addressbar__status.is-on { color: #0b2d6b; background: #00c6ff; }
 
 .gl-resolved {
   position: relative;
@@ -119,7 +220,7 @@
   min-height: 1.5em;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 13px;
-  color: #a9f0cf;
+  color: #ccf4ff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -132,8 +233,8 @@
   flex: none;
   width: 18px;
   height: 10px;
-  border-left: 2px solid #5be3a6;
-  border-bottom: 2px solid #5be3a6;
+  border-left: 2px solid #00c6ff;
+  border-bottom: 2px solid #00c6ff;
   border-bottom-left-radius: 6px;
   transform: translateY(-4px);
 }
@@ -144,13 +245,13 @@
   width: 100%;
   min-height: 0;
   max-height: 560px;
-  margin-top: 36px;
+  margin-top: 24px;
   overflow: visible;
 }
 
 .gl-wire {
   fill: none;
-  stroke: rgba(127, 151, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 1.5;
   stroke-dasharray: 2 7;
   stroke-linecap: round;
@@ -158,50 +259,50 @@
   transition: stroke 0.4s, stroke-width 0.4s;
 }
 .gl-wire.is-lit {
-  stroke: #4fd1e6;
+  stroke: #00c6ff;
   stroke-width: 2.25;
   stroke-dasharray: none;
-  filter: drop-shadow(0 0 6px rgba(79, 209, 230, 0.7));
+  filter: drop-shadow(0 0 6px rgba(0, 198, 255, 0.6));
 }
 @keyframes gl-flow { to { stroke-dashoffset: -90; } }
 
 .gl-pulse { fill: #ffffff; }
-.gl-pulse-halo { fill: rgba(79, 209, 230, 0.35); }
+.gl-pulse-halo { fill: rgba(0, 198, 255, 0.35); }
 
 .gl-src {
   fill: rgba(255, 255, 255, 0.05);
-  stroke: rgba(160, 180, 255, 0.22);
+  stroke: rgba(255, 255, 255, 0.2);
   transition: fill 0.3s, stroke 0.3s;
 }
-.gl-src.is-on { fill: rgba(61, 107, 255, 0.28); stroke: #7f97ff; }
+.gl-src.is-on { fill: rgba(30, 99, 255, 0.45); stroke: #ffffff; }
 .gl-src__text {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-size: 14px;
   font-weight: 500;
-  fill: #e6ebff;
+  fill: #ffffff;
 }
-.gl-src__go { fill: #7f97ff; }
+.gl-src__go { fill: #c3cad5; }
 
 .gl-dst {
   fill: rgba(255, 255, 255, 0.04);
-  stroke: rgba(160, 180, 255, 0.16);
+  stroke: rgba(255, 255, 255, 0.14);
   transition: fill 0.35s, stroke 0.35s;
 }
-.gl-dst.is-on { fill: rgba(91, 227, 166, 0.16); stroke: #5be3a6; }
+.gl-dst.is-on { fill: rgba(0, 198, 255, 0.14); stroke: #00c6ff; }
 .gl-dst__text {
-  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 14px;
   font-weight: 600;
-  fill: rgba(230, 235, 255, 0.82);
+  fill: rgba(255, 255, 255, 0.85);
 }
 
-.gl-jack { fill: #0b1430; stroke: rgba(160, 180, 255, 0.45); stroke-width: 1.5; transition: fill 0.3s, stroke 0.3s; }
-.gl-jack.is-on { fill: #4fd1e6; stroke: #4fd1e6; }
-.gl-jack.is-arrived { fill: #5be3a6; stroke: #5be3a6; }
+.gl-jack { fill: #0b2d6b; stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.5; transition: fill 0.3s, stroke 0.3s; }
+.gl-jack.is-on { fill: #00c6ff; stroke: #00c6ff; }
+.gl-jack.is-arrived { fill: #00c6ff; stroke: #00c6ff; }
 
 .gl-ripple {
   fill: none;
-  stroke: #5be3a6;
+  stroke: #00c6ff;
   stroke-width: 1.5;
   transform-box: fill-box;
   transform-origin: center;

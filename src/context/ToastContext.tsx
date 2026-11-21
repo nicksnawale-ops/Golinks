@@ -40,28 +40,29 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
       >
         {toasts.map((toast) => (
+          /* UDS toast: white surface, elevation-2; colour only on the icon. Errors use Deep Navy. */
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-center justify-between gap-3 p-3.5 rounded-xl border shadow-lg text-xs font-medium transition-all transform animate-in fade-in slide-in-from-bottom-2 duration-200 ${
-              toast.type === 'success'
-                ? 'bg-slate-900 text-white border-slate-800 dark:bg-white dark:text-slate-900 dark:border-slate-200'
-                : toast.type === 'error'
-                ? 'bg-red-600 text-white border-red-700'
-                : 'bg-blue-600 text-white border-blue-700'
+            role={toast.type === 'error' ? 'alert' : 'status'}
+            className={`pointer-events-auto flex items-start justify-between gap-3 p-4 rounded-xl border shadow-md text-sm transition-all ${
+              toast.type === 'error'
+                ? 'bg-ve-navy text-white border-ve-navy'
+                : 'bg-white text-ve-gray-900 border-ve-gray-200'
             }`}
           >
-            <div className="flex items-center gap-2.5 min-w-0">
-              {toast.type === 'success' && (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 dark:text-emerald-600 shrink-0" />
-              )}
-              {toast.type === 'error' && <AlertCircle className="w-4 h-4 text-white shrink-0" />}
-              {toast.type === 'info' && <Info className="w-4 h-4 text-white shrink-0" />}
-              <span className="truncate">{toast.message}</span>
+            <div className="flex items-start gap-2.5 min-w-0">
+              {toast.type === 'success' && <CheckCircle2 className="w-4 h-4 mt-0.5 text-ve-blue shrink-0" />}
+              {toast.type === 'error' && <AlertCircle className="w-4 h-4 mt-0.5 text-ve-cyan shrink-0" />}
+              {toast.type === 'info' && <Info className="w-4 h-4 mt-0.5 text-ve-blue shrink-0" />}
+              <span className="font-medium">{toast.message}</span>
             </div>
             <button
               type="button"
               onClick={() => removeToast(toast.id)}
-              className="p-1 text-slate-400 hover:text-white dark:hover:text-slate-900 rounded transition-colors"
+              aria-label="Dismiss"
+              className={`p-1 rounded transition-colors ${
+                toast.type === 'error' ? 'text-ve-gray-300 hover:text-white' : 'text-ve-gray-400 hover:text-ve-gray-900'
+              }`}
             >
               <X className="w-3.5 h-3.5" />
             </button>

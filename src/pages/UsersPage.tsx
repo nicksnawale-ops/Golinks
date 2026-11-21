@@ -13,7 +13,7 @@ import { UserRole } from '../types/auth';
 import { formatRelativeTime } from '../utils/formatters';
 
 const inputClass =
-  'w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2 text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500';
+  'w-full rounded-lg border border-ve-gray-300 bg-white px-3 py-2 text-sm text-ve-gray-900 focus:outline-none focus:ring-2 focus:ring-ve-blue';
 
 const emptyForm = { name: '', email: '', department: '', role: 'employee' as UserRole, password: '' };
 
@@ -45,7 +45,7 @@ export const UsersPage: React.FC = () => {
 
   if (!isAdmin) {
     return (
-      <div className="max-w-xl mx-auto py-16 text-center text-sm text-slate-500">
+      <div className="max-w-xl mx-auto py-16 text-center text-sm text-ve-gray-500">
         User management is available to administrators only.
       </div>
     );
@@ -92,10 +92,10 @@ export const UsersPage: React.FC = () => {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Users className="w-6 h-6 text-blue-600" /> Users
+          <h1 className="text-ve-gray-900 flex items-center gap-2 text-3xl font-semibold">
+            <Users className="w-6 h-6 text-ve-blue" /> Users
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-ve-gray-500 mt-1">
             Who can sign in, and who can administer GoLinks. Deactivating someone signs them out immediately; their
             links keep working.
           </p>
@@ -103,7 +103,7 @@ export const UsersPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setShowForm((v) => !v)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-ve-blue hover:bg-ve-navy text-white text-sm font-semibold"
         >
           <UserPlus className="w-4 h-4" /> Add user
         </button>
@@ -112,7 +112,7 @@ export const UsersPage: React.FC = () => {
       {showForm && (
         <form
           onSubmit={submitNewUser}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
+          className="bg-white border border-ve-gray-200 rounded-2xl p-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5"
         >
           <input
             required
@@ -157,14 +157,14 @@ export const UsersPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="px-3 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+              className="px-3 py-2 text-sm rounded-lg text-ve-gray-600 hover:bg-ve-gray-100"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-ve-blue hover:bg-ve-navy disabled:opacity-60 text-white"
             >
               {saving ? 'Adding…' : 'Add user'}
             </button>
@@ -172,15 +172,15 @@ export const UsersPage: React.FC = () => {
         </form>
       )}
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto">
+      <div className="bg-white border border-ve-gray-200 rounded-2xl overflow-x-auto">
         {loading ? (
           <div className="p-10 flex justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            <Loader2 className="w-5 h-5 animate-spin text-ve-gray-400" />
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+              <tr className="text-left text-xs uppercase tracking-wider text-ve-gray-500 border-b border-ve-gray-200">
                 <th className="px-4 py-3 font-semibold">User</th>
                 <th className="px-4 py-3 font-semibold">Role</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
@@ -188,19 +188,19 @@ export const UsersPage: React.FC = () => {
                 <th className="px-4 py-3 font-semibold text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            <tbody className="divide-y divide-ve-gray-100">
               {users.map((u) => {
                 const isSelf = u.id === currentUser?.id;
                 const busy = busyId === u.id;
                 return (
                   <tr key={u.id} className={u.isActive ? '' : 'opacity-60'}>
                     <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <div className="font-semibold text-ve-gray-900 flex items-center gap-1.5">
                         {u.name}
-                        {isSelf && <span className="text-[10px] text-slate-400 font-normal">(you)</span>}
+                        {isSelf && <span className="text-[11px] text-ve-gray-400 font-normal">(you)</span>}
                       </div>
-                      <div className="text-xs text-slate-500">{u.email}</div>
-                      {u.department && <div className="text-xs text-slate-400">{u.department}</div>}
+                      <div className="text-xs text-ve-gray-500">{u.email}</div>
+                      {u.department && <div className="text-xs text-ve-gray-400">{u.department}</div>}
                     </td>
                     <td className="px-4 py-3">
                       <select
@@ -209,7 +209,7 @@ export const UsersPage: React.FC = () => {
                         onChange={(e) =>
                           run(u.id, () => updateUser(u.id, { role: e.target.value as UserRole }), `${u.email} is now ${e.target.value}.`)
                         }
-                        className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 px-2 py-1 text-xs"
+                        className="rounded-md border border-ve-gray-400 bg-white px-2 py-1 text-xs"
                       >
                         <option value="employee">Employee</option>
                         <option value="admin">Admin</option>
@@ -217,16 +217,16 @@ export const UsersPage: React.FC = () => {
                     </td>
                     <td className="px-4 py-3">
                       {!u.isActive ? (
-                        <span className="text-xs font-semibold text-slate-500">Deactivated</span>
+                        <span className="text-xs font-semibold text-ve-gray-500">Deactivated</span>
                       ) : !u.hasPassword ? (
-                        <span className="text-xs font-semibold text-amber-600">No password set</span>
+                        <span className="text-xs font-semibold text-ve-navy">No password set</span>
                       ) : (
-                        <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                        <span className="text-xs font-semibold text-ve-navy flex items-center gap-1">
                           {u.role === 'admin' && <Shield className="w-3 h-3" />} Active
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+                    <td className="px-4 py-3 text-xs text-ve-gray-500">
                       {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : 'Never'}
                     </td>
                     <td className="px-4 py-3">
@@ -235,7 +235,7 @@ export const UsersPage: React.FC = () => {
                           type="button"
                           disabled={busy}
                           onClick={() => promptReset(u)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-ve-gray-300 hover:bg-ve-gray-50"
                         >
                           <KeyRound className="w-3 h-3" /> {u.hasPassword ? 'Reset password' : 'Set password'}
                         </button>
@@ -253,8 +253,8 @@ export const UsersPage: React.FC = () => {
                             }}
                             className={`px-2.5 py-1 text-xs rounded-md border ${
                               u.isActive
-                                ? 'border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/40'
-                                : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-900'
+                                ? 'border-ve-navy-200 text-ve-navy hover:bg-ve-gray-100'
+                                : 'border-ve-cyan-200 text-ve-navy hover:bg-ve-gray-100'
                             }`}
                           >
                             {u.isActive ? 'Deactivate' : 'Reactivate'}

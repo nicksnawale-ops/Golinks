@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart as LineChartIcon } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { useTheme } from '../context/ThemeContext';
 import { DailyClicks } from '../services/linkService';
 import { formatNumber } from '../utils/formatters';
 
@@ -18,7 +17,6 @@ const shortDate = (iso: string) =>
 
 /** 30-day clicks area chart, used on the dashboard and on each link's details page. */
 export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitle, load, reloadKey }) => {
-  const { isDark } = useTheme();
   const [data, setData] = useState<DailyClicks[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,33 +33,33 @@ export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitl
   }, [reloadKey]);
 
   const total = data?.reduce((sum, d) => sum + d.clicks, 0) ?? 0;
-  const axis = isDark ? '#94a3b8' : '#64748b';
+  const axis = '#6B7485';
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-xs space-y-4">
+    <div className="bg-white border border-ve-gray-200 rounded-xl p-6 shadow-xs space-y-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <LineChartIcon className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <h2 className="text-base font-semibold text-ve-gray-900 flex items-center gap-2">
+            <LineChartIcon className="w-4 h-4 text-ve-blue" />
             <span>{title}</span>
           </h2>
-          {subtitle && <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-xs text-ve-gray-500 mt-0.5">{subtitle}</p>}
         </div>
         {data && (
           <div className="text-right">
-            <div className="text-lg font-bold font-mono tabular-nums text-slate-900 dark:text-white">{formatNumber(total)}</div>
-            <div className="text-[11px] text-slate-500 dark:text-slate-400">clicks, last {data.length} days</div>
+            <div className="text-lg font-bold font-mono tabular-nums text-ve-gray-900">{formatNumber(total)}</div>
+            <div className="text-[11px] text-ve-gray-500">clicks, last {data.length} days</div>
           </div>
         )}
       </div>
 
       <div className="h-56 w-full">
         {error ? (
-          <div className="h-full flex items-center justify-center text-sm text-slate-500">Couldn't load click history: {error}</div>
+          <div className="h-full flex items-center justify-center text-sm text-ve-gray-500">Couldn't load click history: {error}</div>
         ) : !data ? (
-          <div className="h-full rounded-lg bg-slate-100 dark:bg-slate-800 animate-pulse" />
+          <div className="h-full rounded-lg bg-ve-gray-100 animate-pulse" />
         ) : total === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-slate-500 text-center px-6">
+          <div className="h-full flex items-center justify-center text-sm text-ve-gray-500 text-center px-6">
             No clicks in this period yet. Daily clicks appear here as people open go links.
           </div>
         ) : (
@@ -69,11 +67,11 @@ export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitl
             <AreaChart data={data} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
               <defs>
                 <linearGradient id="clickTrendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563EB" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#2563EB" stopOpacity={0} />
+                  <stop offset="0%" stopColor="#1E63FF" stopOpacity={0.3} />
+                  <stop offset="100%" stopColor="#1E63FF" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDark ? '#1e293b' : '#f1f5f9'} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={'#EEF1F6'} />
               <XAxis
                 dataKey="date"
                 tickFormatter={shortDate}
@@ -87,15 +85,15 @@ export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitl
                   if (!active || !payload?.length) return null;
                   const d = payload[0].payload as DailyClicks;
                   return (
-                    <div className="p-3 bg-slate-900 text-white rounded-lg shadow-xl text-xs space-y-1 border border-slate-700">
+                    <div className="p-3 bg-ve-gray-800 text-white rounded-md shadow-md text-xs space-y-1 ">
                       <div className="font-semibold">{shortDate(d.date)}</div>
                       <div>{formatNumber(d.clicks)} clicks</div>
-                      <div className="text-slate-400">{formatNumber(d.uniqueUsers)} signed-in people</div>
+                      <div className="text-ve-gray-400">{formatNumber(d.uniqueUsers)} signed-in people</div>
                     </div>
                   );
                 }}
               />
-              <Area type="monotone" dataKey="clicks" stroke="#2563EB" strokeWidth={2} fill="url(#clickTrendFill)" />
+              <Area type="monotone" dataKey="clicks" stroke="#1E63FF" strokeWidth={2} fill="url(#clickTrendFill)" />
             </AreaChart>
           </ResponsiveContainer>
         )}
