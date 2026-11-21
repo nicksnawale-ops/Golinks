@@ -1,58 +1,28 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 
-type Theme = 'light' | 'dark';
-
+/**
+ * VisionEdge UDS locks the light theme, so there is no dark mode. The context stays so existing
+ * callers (charts) keep working; isDark is always false.
+ */
 interface ThemeContextType {
-  theme: Theme;
-  toggleTheme: () => void;
-  isDark: boolean;
+  theme: 'light';
+  isDark: false;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = createContext<ThemeContextType>({ theme: 'light', isDark: false });
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setTheme] = useState<Theme>(() => {
-    try {
-      const stored = localStorage.getItem('golinks_theme');
-      if (stored === 'dark' || stored === 'light') return stored;
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        return 'dark';
-      }
-    } catch {
-      // Fallback
-    }
-    return 'light';
-  });
-
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
-    }
+    document.documentElement.classList.remove('dark');
     try {
-      localStorage.setItem('golinks_theme', theme);
-    } catch (err) {
-      console.warn('Unable to persist theme in localStorage', err);
+      localStorage.removeItem('golinks_theme');
+    } catch {
+      // storage unavailable
     }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
-  };
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark: theme === 'dark' }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  }, []);
+  return <ThemeContext.Provider value={{ theme: 'light', isDark: false }}>{children}</ThemeContext.Provider>;
 };
 
 export function useTheme(): ThemeContextType {
-  const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+  return useContext(ThemeContext);
 }

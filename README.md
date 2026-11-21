@@ -347,6 +347,15 @@ curl -b jar -X POST http://go/api/links -H 'Content-Type: application/json' \
   -d '{"shortName":"standup","targetUrl":"https://meet.company.internal/standup","category":"Engineering"}'
 ```
 
+## Design system
+
+The UI follows the [VisionEdge Design System (UDS)](https://visionedge-uds.vercel.app):
+
+- Tokens live in `src/index.css` (`@theme`): Deep Navy, Royal Blue and Cyan plus the Gray 50–900 scale, Inter and JetBrains Mono, the UDS type scale, radius and navy-tinted elevation. Use `ve-*` colour classes (e.g. `bg-ve-blue`, `text-ve-gray-600`).
+- Shared button, input and badge recipes are in `src/ui/ve.ts`.
+- Light theme only. Destructive actions use Gray 900 and error states Deep Navy (no red). Cyan is for live/active indicators and accents on dark surfaces, never text on white.
+- Layout: 240px Deep Navy sidebar (drawer on phones) and a 64px white top bar with the go/ search.
+
 ## Starting with real data
 
 GoLinks starts empty: no sample links, no made-up click counts and no sample audit history. Every number on the dashboard comes from links people create and clicks that actually happen.

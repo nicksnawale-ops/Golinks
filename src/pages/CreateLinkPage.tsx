@@ -26,7 +26,7 @@ export const CreateLinkPage: React.FC<CreateLinkPageProps> = ({
         <button
           type="button"
           onClick={() => onNavigate('directory')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-ve-gray-500 hover:text-ve-gray-800 transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Back to Directory</span>
@@ -34,10 +34,10 @@ export const CreateLinkPage: React.FC<CreateLinkPageProps> = ({
       </div>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+        <h1 className="text-ve-gray-900 text-3xl font-semibold">
           Create New GoLink
         </h1>
-        <p className="text-sm text-slate-600 mt-1">
+        <p className="text-sm text-ve-gray-600 mt-1">
           Set up an internal shortcut accessible to employees across the corporate LAN.
         </p>
       </div>
