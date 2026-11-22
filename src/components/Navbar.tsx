@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { SidebarRoutesArt } from './SidebarRoutesArt';
 import { UserMenu } from './UserMenu';
 
 export type ActivePage =
@@ -130,7 +131,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onResol
 
   const sidebar = (
     <>
-      <div className="h-16 flex items-center justify-between px-4 border-b border-white/10 shrink-0">
+      <div className="relative h-16 flex items-center justify-between px-4 border-b border-white/10 shrink-0">
         <button type="button" onClick={() => go('dashboard')} className="flex items-center gap-3 text-left rounded-lg">
           <span className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0">
             <img src="/visionedge-logo.png" alt="" className="w-7 h-7 object-contain" draggable={false} />
@@ -150,7 +151,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onResol
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto ve-sidebar-scroll py-2" aria-label="Main">
+      {/* Line art sits at the bottom of this area, behind the menu and above the footer. */}
+      <div className="relative flex-1 min-h-0 flex flex-col">
+        <SidebarRoutesArt />
+      <nav className="relative flex-1 overflow-y-auto ve-sidebar-scroll py-2" aria-label="Main">
         {NAV_GROUPS.map((group) => {
           const items = group.items.filter((i) => !i.adminOnly || isAdmin);
           if (items.length === 0) return null;
@@ -189,7 +193,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onResol
         })}
       </nav>
 
-      <div className="px-4 py-3 border-t border-white/10 text-[11px] text-ve-gray-300 shrink-0">
+      </div>
+
+      <div className="relative px-4 py-3 border-t border-white/10 text-[11px] text-ve-gray-300 shrink-0">
         Type <span className="font-mono text-white">go/name</span> in your browser to jump to any link.
       </div>
     </>
@@ -198,13 +204,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, onResol
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[240px] flex-col bg-ve-navy text-white">{sidebar}</aside>
+      <aside className="hidden md:flex fixed inset-y-0 left-0 z-40 w-[240px] flex-col overflow-hidden bg-ve-navy text-white">{sidebar}</aside>
 
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="md:hidden fixed inset-0 z-50">
           <div className="absolute inset-0 bg-ve-black/50" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
-          <aside className="relative h-full w-[280px] max-w-[85vw] flex flex-col bg-ve-navy text-white shadow-xl">
+          <aside className="relative h-full w-[280px] max-w-[85vw] flex flex-col overflow-hidden bg-ve-navy text-white shadow-xl">
             {sidebar}
           </aside>
         </div>
