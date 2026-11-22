@@ -7,7 +7,7 @@
  * password removed at the next start, so the published credentials stop working.
  */
 import type Database from 'better-sqlite3';
-import { MOCK_USERS, PREVIOUS_DEMO_EMAILS } from '../../shared/types/auth';
+import { MOCK_USERS, PREVIOUS_DEMO_EMAILS, PREVIOUS_DEMO_NAMES } from '../../shared/types/auth';
 import {
   getPasswordHash,
   getUserById,
@@ -59,9 +59,22 @@ function updateDemoEmails(db: Database.Database, log: string[]): void {
   }
 }
 
+/** Demo accounts still using an earlier default name get the current one; names an admin set are kept. */
+function updateDemoNames(db: Database.Database): void {
+  for (const seed of MOCK_USERS) {
+    const previous = PREVIOUS_DEMO_NAMES[seed.id];
+    if (!previous) continue;
+    const row = db.prepare('SELECT name FROM users WHERE id = ?').get(seed.id) as { name: string } | undefined;
+    if (row && previous.includes(row.name)) db.prepare('UPDATE users SET name = ? WHERE id = ?').run(seed.name, seed.id);
+  }
+}
+
 export function applyDemoMode(db: Database.Database, enabled: boolean): string[] {
   const log: string[] = [];
-  if (enabled) updateDemoEmails(db, log);
+  if (enabled) {
+    updateDemoEmails(db, log);
+    updateDemoNames(db);
+  }
   for (const d of DEMO_USERS) {
     if (enabled) {
       const seed = MOCK_USERS.find((u) => u.id === d.id);
