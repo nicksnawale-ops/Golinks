@@ -61,8 +61,8 @@ before(async () => {
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
   for (const id of ['user_admin', 'user_nikhil', 'user_sarah']) setPasswordHash(db, id, hashPassword(PASSWORD));
-  ADMIN = await signIn('admin@company.internal');
-  EMPLOYEE = await signIn('nikhil.nawale01@gmail.com');
+  ADMIN = await signIn('admin@vision-edge.ai');
+  EMPLOYEE = await signIn('user@vision-edge.ai');
   OTHER_EMPLOYEE = await signIn('hr-ops@company.internal');
 });
 
@@ -253,7 +253,7 @@ describe('API', () => {
     );
     assert.equal(created.status, 201);
     assert.equal(created.body.shortName, 'team-docs');
-    assert.equal(created.body.owner, 'nikhil.nawale01@gmail.com'); // employees always own their links
+    assert.equal(created.body.owner, 'user@vision-edge.ai'); // employees always own their links
     assert.deepEqual(created.body.tags, ['a', 'b']);
     const id = created.body.id;
 
@@ -263,7 +263,7 @@ describe('API', () => {
 
     // employees cannot edit others' links or reassign ownership
     assert.equal((await api('PUT', '/links/seed-01-hr', { targetUrl: 'https://x.local' }, EMPLOYEE)).status, 403);
-    assert.equal((await api('PUT', `/links/${id}`, { owner: 'admin@company.internal' }, EMPLOYEE)).status, 403);
+    assert.equal((await api('PUT', `/links/${id}`, { owner: 'admin@vision-edge.ai' }, EMPLOYEE)).status, 403);
 
     const updated = await api('PUT', `/links/${id}`, { targetUrl: 'https://docs2.local' }, EMPLOYEE);
     assert.equal(updated.status, 200);
@@ -352,7 +352,7 @@ describe('sign-in and sessions', () => {
 
   test('wrong password, unknown email and password-less accounts all get the same 401', async () => {
     for (const [email, password] of [
-      ['admin@company.internal', 'wrong-password'],
+      ['admin@vision-edge.ai', 'wrong-password'],
       ['nobody@company.internal', PASSWORD],
       ['finance-ops@company.internal', PASSWORD], // seeded user with no password
     ]) {
@@ -378,8 +378,8 @@ describe('sign-in and sessions', () => {
   });
 
   test('/auth/me and logout', async () => {
-    const session = await signIn('admin@company.internal');
-    assert.equal((await api('GET', '/auth/me', undefined, session)).body.email, 'admin@company.internal');
+    const session = await signIn('admin@vision-edge.ai');
+    assert.equal((await api('GET', '/auth/me', undefined, session)).body.email, 'admin@vision-edge.ai');
     assert.equal((await api('GET', '/auth/me', undefined, {})).status, 401);
     assert.equal((await api('POST', '/auth/logout', undefined, session)).status, 204);
     assert.equal((await api('GET', '/auth/me', undefined, session)).status, 401);
@@ -485,10 +485,10 @@ describe('private links', () => {
   test('duplicate check does not reveal the private owner', async () => {
     const res = await api('GET', '/links/validate?shortName=secret-plan', undefined, OTHER_EMPLOYEE);
     assert.equal(res.body.valid, false);
-    assert.doesNotMatch(res.body.error, /nikhil/);
+    assert.doesNotMatch(res.body.error, /user@vision-edge/);
     const create = await api('POST', '/links', { shortName: 'secret-plan', targetUrl: 'https://a.local' }, OTHER_EMPLOYEE);
     assert.equal(create.status, 409);
-    assert.doesNotMatch(create.body.error, /nikhil/);
+    assert.doesNotMatch(create.body.error, /user@vision-edge/);
   });
 
   test('stats only count what you can see', async () => {
@@ -588,7 +588,7 @@ describe('real data only', () => {
       .prepare(
         `INSERT INTO links (id, short_name, target_url, description, category, owner, visibility, is_active, click_count,
          last_accessed_at, created_at, updated_at, tags)
-         VALUES ('real-1', 'mine', 'https://mine.local', '', 'General', 'admin@company.internal', 'public', 1, 3, NULL,
+         VALUES ('real-1', 'mine', 'https://mine.local', '', 'General', 'admin@vision-edge.ai', 'public', 1, 3, NULL,
          '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z', '[]')`
       )
       .run();
