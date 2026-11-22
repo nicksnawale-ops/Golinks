@@ -121,6 +121,20 @@
 .ve-sidebar-scroll::-webkit-scrollbar { width: 4px; }
 .ve-sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
 
+/* Sidebar line art (SidebarRoutesArt.tsx): fades in towards the bottom; waves and routes drift slowly. */
+.ve-sidebar-art {
+  mask-image: linear-gradient(to bottom, transparent 0%, #000 38%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 38%);
+}
+.ve-art-waves path { stroke-dasharray: 2 7; animation: ve-art-drift 18s linear infinite; }
+.ve-art-routes path { animation: ve-art-drift 6s linear infinite; }
+@keyframes ve-art-drift { to { stroke-dashoffset: -63; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-art-waves path,
+  .ve-art-routes path { animation: none; }
+}
+
 /* ---------------------------------------------------------------------------
  * Sign-in page: route switchboard backdrop (RouteSwitchboard.tsx)
  * Palette: VisionEdge UDS only. Deep Navy surface #0B2D6B, Royal Blue #1E63FF,
