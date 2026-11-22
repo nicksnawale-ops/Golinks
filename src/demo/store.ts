@@ -7,7 +7,7 @@
  */
 import { SEED_AUDIT_LOGS, SEED_LINKS } from '../../shared/seedData';
 import { AuditLogEntry } from '../../shared/types/audit';
-import { MOCK_USERS, PREVIOUS_DEMO_EMAILS, User } from '../../shared/types/auth';
+import { MOCK_USERS, PREVIOUS_DEMO_EMAILS, PREVIOUS_DEMO_NAMES, User } from '../../shared/types/auth';
 import { GoLink } from '../../shared/types/link';
 
 export interface DemoUser extends User {
@@ -103,7 +103,13 @@ function updateDemoEmails(state: DemoState): DemoState {
     users = users.map((u) => (u.id === seed.id ? { ...u, email: seed.email } : u));
     links = links.map((l) => (l.owner.toLowerCase() === old ? { ...l, owner: seed.email } : l));
   }
-  return users === state.users ? state : { ...state, users, links };
+  // Default names from earlier versions get the current ones; names someone changed are kept.
+  users = users.map((u) => {
+    const seed = MOCK_USERS.find((m) => m.id === u.id);
+    return seed && PREVIOUS_DEMO_NAMES[u.id]?.includes(u.name) ? { ...u, name: seed.name } : u;
+  });
+  const changed = users.some((u, i) => u !== state.users[i]) || links !== state.links;
+  return changed ? { ...state, users, links } : state;
 }
 
 function load(): DemoState {

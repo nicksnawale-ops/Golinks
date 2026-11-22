@@ -9,6 +9,12 @@ export interface User {
   avatarUrl?: string;
 }
 
+/** Earlier default names of the demo accounts, replaced by the current ones unless someone renamed them. */
+export const PREVIOUS_DEMO_NAMES: Record<string, string[]> = {
+  user_admin: ['Alex Rivera (Admin)'],
+  user_nikhil: ['Nikhil Nawale (Employee)'],
+};
+
 /** Earlier email addresses of the demo accounts, so stored data can be moved to the current ones. */
 export const PREVIOUS_DEMO_EMAILS: Record<string, string[]> = {
   user_admin: ['admin@company.internal'],
@@ -18,14 +24,14 @@ export const PREVIOUS_DEMO_EMAILS: Record<string, string[]> = {
 export const MOCK_USERS: User[] = [
   {
     id: 'user_admin',
-    name: 'Alex Rivera (Admin)',
+    name: 'VisionEdge Admin',
     email: 'admin@vision-edge.ai',
     role: 'admin',
     department: 'IT Infrastructure',
   },
   {
     id: 'user_nikhil',
-    name: 'Nikhil Nawale (Employee)',
+    name: 'User',
     email: 'user@vision-edge.ai',
     role: 'employee',
     department: 'Engineering',
