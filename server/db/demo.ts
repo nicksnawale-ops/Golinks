@@ -7,7 +7,7 @@
  * password removed at the next start, so the published credentials stop working.
  */
 import type Database from 'better-sqlite3';
-import { MOCK_USERS } from '../../shared/types/auth';
+import { MOCK_USERS, PREVIOUS_DEMO_EMAILS } from '../../shared/types/auth';
 import {
   getPasswordHash,
   getUserById,
@@ -38,8 +38,30 @@ export function getDemoAccounts(db: Database.Database): DemoAccount[] {
 }
 
 /** Applies (enabled) or retracts (disabled) the demo credentials. Returns log lines. */
+/**
+ * Demo accounts created with an earlier email address are moved to the current one, together with
+ * the links they own. The audit log is history, so its entries keep the address used at the time.
+ */
+function updateDemoEmails(db: Database.Database, log: string[]): void {
+  for (const seed of MOCK_USERS) {
+    const previous = PREVIOUS_DEMO_EMAILS[seed.id];
+    if (!previous) continue;
+    const row = db.prepare('SELECT email FROM users WHERE id = ?').get(seed.id) as { email: string } | undefined;
+    if (!row || row.email.toLowerCase() === seed.email.toLowerCase()) continue;
+    if (!previous.some((e) => e.toLowerCase() === row.email.toLowerCase())) continue; // changed by an admin: leave it
+    const taken = db.prepare('SELECT 1 FROM users WHERE lower(email) = lower(?) AND id != ?').get(seed.email, seed.id);
+    if (taken) continue;
+    db.transaction(() => {
+      db.prepare('UPDATE users SET email = ? WHERE id = ?').run(seed.email, seed.id);
+      db.prepare('UPDATE links SET owner = ? WHERE lower(owner) = lower(?)').run(seed.email, row.email);
+    })();
+    log.push(`Demo account ${row.email} is now ${seed.email}`);
+  }
+}
+
 export function applyDemoMode(db: Database.Database, enabled: boolean): string[] {
   const log: string[] = [];
+  if (enabled) updateDemoEmails(db, log);
   for (const d of DEMO_USERS) {
     if (enabled) {
       const seed = MOCK_USERS.find((u) => u.id === d.id);

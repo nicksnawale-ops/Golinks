@@ -175,7 +175,7 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'audit_01_seed',
     timestamp: '2025-01-10T08:00:00.000Z',
-    actorEmail: 'admin@company.internal',
+    actorEmail: 'admin@vision-edge.ai',
     actorName: 'Alex Rivera (Admin)',
     actorRole: 'admin',
     linkId: 'seed-01-hr',
@@ -210,7 +210,7 @@ export const SEED_AUDIT_LOGS: AuditLogEntry[] = [
   {
     id: 'audit_03_seed',
     timestamp: '2025-08-20T14:00:00.000Z',
-    actorEmail: 'admin@company.internal',
+    actorEmail: 'admin@vision-edge.ai',
     actorName: 'Alex Rivera (Admin)',
     actorRole: 'admin',
     linkId: 'seed-06b-emp',

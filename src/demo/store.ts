@@ -7,7 +7,7 @@
  */
 import { SEED_AUDIT_LOGS, SEED_LINKS } from '../../shared/seedData';
 import { AuditLogEntry } from '../../shared/types/audit';
-import { MOCK_USERS, User } from '../../shared/types/auth';
+import { MOCK_USERS, PREVIOUS_DEMO_EMAILS, User } from '../../shared/types/auth';
 import { GoLink } from '../../shared/types/link';
 
 export interface DemoUser extends User {
@@ -89,13 +89,30 @@ function removeSamples(state: DemoState): DemoState {
   };
 }
 
+/** Moves demo accounts saved with an earlier email (and the links they own) to the current email. */
+function updateDemoEmails(state: DemoState): DemoState {
+  let users = state.users;
+  let links = state.links;
+  for (const seed of MOCK_USERS) {
+    const previous = PREVIOUS_DEMO_EMAILS[seed.id];
+    const stored = users.find((u) => u.id === seed.id);
+    if (!previous || !stored || stored.email.toLowerCase() === seed.email.toLowerCase()) continue;
+    if (!previous.some((e) => e.toLowerCase() === stored.email.toLowerCase())) continue;
+    if (users.some((u) => u.id !== seed.id && u.email.toLowerCase() === seed.email.toLowerCase())) continue;
+    const old = stored.email.toLowerCase();
+    users = users.map((u) => (u.id === seed.id ? { ...u, email: seed.email } : u));
+    links = links.map((l) => (l.owner.toLowerCase() === old ? { ...l, owner: seed.email } : l));
+  }
+  return users === state.users ? state : { ...state, users, links };
+}
+
 function load(): DemoState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as DemoState;
       if (parsed && parsed.version === 1 && Array.isArray(parsed.links)) {
-        return parsed.samplesRemoved ? parsed : removeSamples(parsed);
+        return updateDemoEmails(parsed.samplesRemoved ? parsed : removeSamples(parsed));
       }
     }
   } catch {
