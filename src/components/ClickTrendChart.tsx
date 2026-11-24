@@ -3,6 +3,7 @@ import { LineChart as LineChartIcon } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { DailyClicks } from '../services/linkService';
 import { formatNumber } from '../utils/formatters';
+import { GhostTrendLine } from './live/EmptyStateArt';
 
 interface ClickTrendChartProps {
   title: string;
@@ -59,7 +60,8 @@ export const ClickTrendChart: React.FC<ClickTrendChartProps> = ({ title, subtitl
         ) : !data ? (
           <div className="h-full rounded-lg bg-ve-gray-100 animate-pulse" />
         ) : total === 0 ? (
-          <div className="h-full flex items-center justify-center text-sm text-ve-gray-500 text-center px-6">
+          <div className="h-full flex flex-col items-center justify-center text-sm text-ve-gray-500 text-center px-6">
+            <GhostTrendLine />
             No clicks in this period yet. Daily clicks appear here as people open go links.
           </div>
         ) : (

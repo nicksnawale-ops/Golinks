@@ -136,6 +136,18 @@ export class DemoDB {
 
   constructor() {
     this.save(); // persist the one-time sample cleanup straight away
+    // Pick up changes made in other tabs (e.g. a go link opened elsewhere), so the live dashboard sees them.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key !== STORAGE_KEY || !e.newValue || this.depth > 0) return;
+        try {
+          const next = JSON.parse(e.newValue) as DemoState;
+          if (next && next.version === 1 && Array.isArray(next.links)) this.state = next;
+        } catch {
+          // ignore a partial or corrupt write
+        }
+      });
+    }
   }
   private depth = 0;
 

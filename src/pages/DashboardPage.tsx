@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity,
   AlertTriangle,
@@ -32,6 +32,9 @@ import {
   YAxis,
 } from 'recharts';
 import { ClickTrendChart } from '../components/ClickTrendChart';
+import { AnimatedNumber } from '../components/live/AnimatedNumber';
+import { GhostRankingBars } from '../components/live/EmptyStateArt';
+import { LiveIndicator } from '../components/live/LiveIndicator';
 import { CopyButton } from '../components/CopyButton';
 import { MissingLinksCard } from '../components/MissingLinksCard';
 import { DeactivateConfirmModal } from '../components/DeactivateConfirmModal';
@@ -50,6 +53,26 @@ interface DashboardPageProps {
   onToggleActive: (id: string, currentState: boolean) => Promise<GoLink>;
   onResolve: (path: string) => void;
   onOpenCsvImport?: () => void;
+  /** Re-fetches links in the background; the dashboard calls it every 20 seconds while visible. */
+  onRefresh?: () => Promise<void>;
+}
+
+const LIVE_INTERVAL_MS = 20_000;
+
+/** Returns a class that makes a card glow briefly whenever `value` goes up (not on first render). */
+function useBumpClass(value: number): string {
+  const prev = useRef(value);
+  const [bump, setBump] = useState(0);
+  useEffect(() => {
+    if (value > prev.current) setBump((b) => b + 1);
+    prev.current = value;
+  }, [value]);
+  useEffect(() => {
+    if (!bump) return;
+    const t = window.setTimeout(() => setBump(0), 1400);
+    return () => window.clearTimeout(t);
+  }, [bump]);
+  return bump ? 've-card-bump' : '';
 }
 
 export const DashboardPage: React.FC<DashboardPageProps> = ({
@@ -59,7 +82,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onToggleActive,
   onResolve,
   onOpenCsvImport,
+  onRefresh,
 }) => {
+  // Live: refresh quietly every 20s while the tab is visible, and as soon as it becomes visible again.
+  const [lastUpdated, setLastUpdated] = useState<number | null>(() => Date.now());
+  const [tabHidden, setTabHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
+  useEffect(() => {
+    if (!onRefresh) return;
+    let cancelled = false;
+    const run = async () => {
+      if (document.hidden) return;
+      try {
+        await onRefresh();
+        if (!cancelled) setLastUpdated(Date.now());
+      } catch {
+        // keep showing the last good data
+      }
+    };
+    const timer = window.setInterval(run, LIVE_INTERVAL_MS);
+    const onVisibility = () => {
+      setTabHidden(document.hidden);
+      if (!document.hidden) run();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [onRefresh]);
+
   const { isAdmin, currentUser } = useAuth();
   const [deleteModalLink, setDeleteModalLink] = useState<GoLink | null>(null);
   const [deactivateModalLink, setDeactivateModalLink] = useState<GoLink | null>(null);
@@ -77,6 +129,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     const d = new Date(l.createdAt);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
   }).length;
+
+  const linksBump = useBumpClass(totalLinks);
+  const clicksBump = useBumpClass(totalClicks);
 
   // 2. Top 10 Most-Used Links
   const top10Links = [...links]
@@ -138,9 +193,10 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
               Dashboard
             </h1>
           </div>
-          <p className="text-xs text-ve-gray-500 mt-1">
-            How your team's go links are being used.
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-xs text-ve-gray-500">How your team's go links are being used.</p>
+            {onRefresh && <LiveIndicator lastUpdated={lastUpdated} paused={tabHidden} />}
+          </div>
         </div>
 
         {/* Action Buttons */}
@@ -180,13 +236,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
       {/* 1. Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Total Links */}
-        <div className="bg-white border border-ve-gray-200 rounded-xl p-4 sm:p-6">
+        <div className={`bg-white border border-ve-gray-200 rounded-xl p-4 sm:p-6 ${linksBump}`}>
           <div className="flex items-center justify-between text-[11px] leading-4 font-medium uppercase tracking-[0.08em] text-ve-gray-500">
             <span>Total links</span>
             <LinkIcon className="w-4 h-4 text-ve-gray-600" />
           </div>
           <div className="mt-2 text-4xl font-bold tabular-nums text-ve-navy">
-            {formatNumber(totalLinks)}
+            <AnimatedNumber value={totalLinks} showIncrease />
           </div>
           <div className="mt-1 flex items-center gap-1 text-xs text-ve-gray-600">
             <span>{totalLinks === 0 ? 'None created yet' : 'In the directory'}</span>
@@ -200,7 +256,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <CheckCircle2 className="w-4 h-4 text-ve-gray-600" />
           </div>
           <div className="mt-2 text-4xl font-bold tabular-nums text-ve-navy flex items-baseline gap-2">
-            <span>{formatNumber(activeLinks)}</span>
+            <AnimatedNumber value={activeLinks} />
             <span className="text-xs font-medium text-ve-gray-600">
               {totalLinks > 0 ? `${Math.round((activeLinks / totalLinks) * 100)}% active` : ''}
             </span>
@@ -211,13 +267,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         </div>
 
         {/* Total Clicks */}
-        <div className="bg-white border border-ve-gray-200 rounded-xl p-4 sm:p-6">
+        <div className={`bg-white border border-ve-gray-200 rounded-xl p-4 sm:p-6 ${clicksBump}`}>
           <div className="flex items-center justify-between text-[11px] leading-4 font-medium uppercase tracking-[0.08em] text-ve-gray-500">
             <span>Total clicks</span>
             <Activity className="w-4 h-4 text-ve-gray-600" />
           </div>
           <div className="mt-2 text-4xl font-bold tabular-nums text-ve-navy">
-            {formatNumber(totalClicks)}
+            <AnimatedNumber value={totalClicks} showIncrease />
           </div>
           <div className="mt-1 flex items-center gap-1 text-xs text-ve-gray-600">
             <span>Redirects since each link was created</span>
@@ -231,7 +287,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
             <Calendar className="w-4 h-4 text-ve-gray-600" />
           </div>
           <div className="mt-2 text-4xl font-bold tabular-nums text-ve-navy">
-            {formatNumber(createdThisMonth)}
+            <AnimatedNumber value={createdThisMonth} />
           </div>
           <div className="mt-1 flex items-center gap-1 text-xs text-ve-gray-600">
             <span>
@@ -258,6 +314,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
         <div className="h-72 w-full pt-2">
           {top10Links.every((l) => l.clicks === 0) ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-6">
+              <GhostRankingBars />
               <p className="text-sm font-medium text-ve-gray-700">
                 {links.length === 0 ? 'No go links yet' : 'No clicks yet'}
               </p>

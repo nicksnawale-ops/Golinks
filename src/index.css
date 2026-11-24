@@ -136,6 +136,59 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Live dashboard (src/components/live): Live pulse, "+N" chips, empty-state motion.
+ * ------------------------------------------------------------------------- */
+.ve-live-ping { animation: ve-live-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite; }
+@keyframes ve-live-ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+.ve-increase-chip { animation: ve-chip 2.6s ease-out forwards; }
+@keyframes ve-chip {
+  0% { opacity: 0; transform: translateY(4px); }
+  12%, 75% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+/* A card whose number just went up glows briefly in Royal Blue. */
+.ve-card-bump { animation: ve-card-bump 1.4s ease-out; }
+@keyframes ve-card-bump {
+  0% { box-shadow: 0 0 0 0 rgba(30, 99, 255, 0.35); border-color: #1e63ff; }
+  100% { box-shadow: 0 0 0 10px rgba(30, 99, 255, 0); }
+}
+
+.ve-ghost-bar {
+  transform-origin: left center;
+  animation: ve-bar-grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both, ve-bar-breathe 3.6s ease-in-out 1.2s infinite;
+}
+@keyframes ve-bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ve-bar-breathe { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(0.86); } }
+
+.ve-ghost-line { stroke-dasharray: 1; animation: ve-line-draw 4.5s ease-in-out infinite; }
+.ve-ghost-area { animation: ve-area-fade 4.5s ease-in-out infinite; }
+.ve-ghost-dot { offset-rotate: 0deg; animation: ve-dot-run 4.5s ease-in-out infinite; }
+@keyframes ve-line-draw {
+  0% { stroke-dashoffset: 1; opacity: 1; }
+  55%, 85% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+@keyframes ve-area-fade { 0%, 35% { opacity: 0; } 60%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ve-dot-run {
+  0% { offset-distance: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  55% { offset-distance: 100%; opacity: 1; }
+  85% { offset-distance: 100%; opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ve-live-ping, .ve-increase-chip, .ve-card-bump, .ve-ghost-bar, .ve-ghost-area { animation: none; }
+  .ve-ghost-line { animation: none; stroke-dashoffset: 0; }
+  .ve-ghost-dot { animation: none; offset-distance: 100%; }
+}
+
+/* ---------------------------------------------------------------------------
  * Sign-in page: route switchboard backdrop (RouteSwitchboard.tsx)
  * Palette: VisionEdge UDS only. Deep Navy surface #0B2D6B, Royal Blue #1E63FF,
  * Cyan #00C6FF (on dark only), white and the grey scale.
