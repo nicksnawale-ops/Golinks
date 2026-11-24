@@ -10,6 +10,7 @@ import {
   Search,
   Sparkles,
 } from 'lucide-react';
+import { RoutePulse } from '../components/live/RoutePulse';
 import { resolveLink } from '../services/linkService';
 import { GoLink, ResolveResult } from '../types/link';
 
@@ -99,9 +100,12 @@ export const RedirectPage: React.FC<RedirectPageProps> = ({
             Redirecting to destination...
           </h1>
 
-          <div className="mt-3 inline-block font-mono text-sm font-semibold text-ve-blue bg-ve-blue-50 px-3 py-1 rounded-md border border-ve-blue-200">
-            go/{shortPath}
-          </div>
+          <RoutePulse
+            className="mt-4 justify-center text-left"
+            from={`go/${shortPath}`}
+            to={hostOf(result.resolvedUrl)}
+            active={!isCancelled}
+          />
 
           <div className="mt-4 p-3 bg-ve-gray-50 border border-ve-gray-200 rounded-lg text-xs font-mono text-ve-gray-700 break-all text-left">
             <div className="text-[11px] text-ve-gray-400 font-sans uppercase font-semibold mb-1">
@@ -118,6 +122,12 @@ export const RedirectPage: React.FC<RedirectPageProps> = ({
 
           {!isCancelled ? (
             <div className="mt-6 space-y-3">
+              <div className="h-1 rounded-full bg-ve-blue-100 overflow-hidden" aria-hidden="true">
+                <div
+                  className="ve-progress-fill h-full bg-ve-blue rounded-full"
+                  style={{ '--ve-progress-ms': '2000ms' } as React.CSSProperties}
+                />
+              </div>
               <p className="text-xs text-ve-gray-500">
                 Forwarding automatically in{' '}
                 <strong className="font-mono text-ve-gray-800 text-sm">{countdown}s</strong>...
@@ -309,3 +319,11 @@ export const RedirectPage: React.FC<RedirectPageProps> = ({
     </div>
   );
 };
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}

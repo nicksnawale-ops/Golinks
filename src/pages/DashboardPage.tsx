@@ -35,6 +35,7 @@ import { ClickTrendChart } from '../components/ClickTrendChart';
 import { AnimatedNumber } from '../components/live/AnimatedNumber';
 import { GhostRankingBars } from '../components/live/EmptyStateArt';
 import { LiveIndicator } from '../components/live/LiveIndicator';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
 import { CopyButton } from '../components/CopyButton';
 import { MissingLinksCard } from '../components/MissingLinksCard';
 import { DeactivateConfirmModal } from '../components/DeactivateConfirmModal';
@@ -57,7 +58,6 @@ interface DashboardPageProps {
   onRefresh?: () => Promise<void>;
 }
 
-const LIVE_INTERVAL_MS = 20_000;
 
 /** Returns a class that makes a card glow briefly whenever `value` goes up (not on first render). */
 function useBumpClass(value: number): string {
@@ -85,32 +85,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
   onRefresh,
 }) => {
   // Live: refresh quietly every 20s while the tab is visible, and as soon as it becomes visible again.
-  const [lastUpdated, setLastUpdated] = useState<number | null>(() => Date.now());
-  const [tabHidden, setTabHidden] = useState(() => typeof document !== 'undefined' && document.hidden);
-  useEffect(() => {
-    if (!onRefresh) return;
-    let cancelled = false;
-    const run = async () => {
-      if (document.hidden) return;
-      try {
-        await onRefresh();
-        if (!cancelled) setLastUpdated(Date.now());
-      } catch {
-        // keep showing the last good data
-      }
-    };
-    const timer = window.setInterval(run, LIVE_INTERVAL_MS);
-    const onVisibility = () => {
-      setTabHidden(document.hidden);
-      if (!document.hidden) run();
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-  }, [onRefresh]);
+  const { lastUpdated, paused: tabHidden } = useLiveRefresh(onRefresh);
 
   const { isAdmin, currentUser } = useAuth();
   const [deleteModalLink, setDeleteModalLink] = useState<GoLink | null>(null);
@@ -195,7 +170,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
             <p className="text-xs text-ve-gray-500">How your team's go links are being used.</p>
-            {onRefresh && <LiveIndicator lastUpdated={lastUpdated} paused={tabHidden} />}
+            {onRefresh && <LiveIndicator lastUpdated={lastUpdated} paused={tabHidden} what="The dashboard" />}
           </div>
         </div>
 

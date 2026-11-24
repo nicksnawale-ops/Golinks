@@ -195,6 +195,7 @@ function GoLinksApp() {
 
         {currentPage === 'directory' && (
           <DirectoryPage
+            onRefresh={refreshQuietly}
             links={links}
             categories={categories}
             loading={loading}
@@ -210,6 +211,7 @@ function GoLinksApp() {
 
         {currentPage === 'my-links' && (
           <MyLinksPage
+            onRefresh={refreshQuietly}
             links={links}
             onNavigate={navigateTo}
             onDelete={remove}

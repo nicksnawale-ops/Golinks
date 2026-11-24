@@ -13,6 +13,9 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
+import { LiveIndicator } from '../components/live/LiveIndicator';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
+import { useNewItems } from '../components/live/useNewItems';
 import { useAuth } from '../context/AuthContext';
 import { getAuditLogs } from '../services/auditService';
 import { AuditAction, AuditLogEntry } from '../types/audit';
@@ -31,9 +34,9 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
   const [shortNameSearch, setShortNameSearch] = useState<string>('');
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const data = await getAuditLogs({
         action: actionFilter,
         actor: actorSearch,
@@ -41,11 +44,16 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
       });
       setLogs(data);
     } catch (err) {
+      if (silent) throw err;
       console.error('Failed to load audit logs', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  // New events appear on their own (and glow briefly) while an admin has the log open.
+  const live = useLiveRefresh(isAdmin ? () => fetchLogs(true) : undefined);
+  const newIds = useNewItems<AuditLogEntry>(logs, (e) => e.id, (e) => e.timestamp);
 
   useEffect(() => {
     fetchLogs();
@@ -96,7 +104,10 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
               Audit log
             </h1>
           </div>
-          <p className="text-xs text-ve-gray-500 mt-1">
+          <div className="mt-2">
+            <LiveIndicator lastUpdated={live.lastUpdated} paused={live.paused} what="The audit log" />
+          </div>
+          <p className="text-xs text-ve-gray-500 mt-2">
             Immutable log recording who created, edited, deleted, or deactivated shortcuts with full before-and-after change diffs.
           </p>
         </div>
@@ -198,7 +209,7 @@ export const AuditLogPage: React.FC<AuditLogPageProps> = ({ onNavigate }) => {
                         onClick={() => hasDiff && setExpandedRowId(isExpanded ? null : entry.id)}
                         className={`transition-colors ${
                           hasDiff ? 'cursor-pointer hover:bg-ve-gray-50/80' : ''
-                        }`}
+                        } ${newIds.has(entry.id) ? 've-row-new' : ''}`}
                       >
                         <td className="py-3 px-3 text-center text-ve-gray-400">
                           {hasDiff ? (

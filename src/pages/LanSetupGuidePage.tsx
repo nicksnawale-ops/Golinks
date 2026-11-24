@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, BookOpen, Check, Copy, Cpu, Globe, Server, Terminal } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
+import { LanFlowDiagram } from '../components/live/LanFlowDiagram';
 
 interface LanSetupGuidePageProps {
   onNavigate: (page: string) => void;
@@ -33,6 +34,8 @@ export const LanSetupGuidePage: React.FC<LanSetupGuidePageProps> = ({ onNavigate
           Here is how IT engineers and employees configure the environment.
         </p>
       </div>
+
+      <LanFlowDiagram />
 
       {/* Method 1: Browser Omnibox Search Keyword */}
       <section className="bg-white border border-ve-gray-200 rounded-xl p-6 shadow-xs space-y-4">
