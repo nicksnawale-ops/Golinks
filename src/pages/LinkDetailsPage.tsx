@@ -27,8 +27,12 @@ import { useAuth } from '../context/AuthContext';
 import { canUserManageLink } from '../services/authService';
 import { getLink, getLinkDailyClicks, recordClick } from '../services/linkService';
 import { ClickTrendChart } from '../components/ClickTrendChart';
+import { AnimatedNumber } from '../components/live/AnimatedNumber';
+import { LiveIndicator } from '../components/live/LiveIndicator';
+import { RoutePulse } from '../components/live/RoutePulse';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
 import { GoLink } from '../types/link';
-import { formatFullDateTime, formatNumber, formatRelativeTime } from '../utils/formatters';
+import { formatFullDateTime, formatRelativeTime } from '../utils/formatters';
 import { getLinkHealth } from '../utils/linkHealth';
 
 interface LinkDetailsPageProps {
@@ -80,6 +84,16 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
   useEffect(() => {
     fetchLink();
   }, [id]);
+
+  // Keep clicks, last access and the chart current while the page is open.
+  const live = useLiveRefresh(
+    link
+      ? async () => {
+          const fresh = await getLink(id);
+          if (fresh) setLink(fresh);
+        }
+      : undefined
+  );
 
   // Compute test parameter URL whenever suffix changes
   useEffect(() => {
@@ -292,6 +306,12 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
             </span>
             <CopyButton text={link.targetUrl} label="Copy Target" size="sm" />
           </div>
+          <RoutePulse
+            from={`go/${link.shortName}`}
+            to={hostOf(link.targetUrl)}
+            active={link.isActive}
+            className="py-1"
+          />
           <div className="font-mono text-sm text-ve-gray-800 break-all bg-white p-2.5 rounded border border-ve-gray-200">
             {link.targetUrl}
           </div>
@@ -341,6 +361,10 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
       </div>
 
       {/* Analytics & Stats Grid */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-ve-gray-900">Activity</h2>
+        <LiveIndicator lastUpdated={live.lastUpdated} paused={live.paused} />
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Clicks */}
         <div className="bg-white border border-ve-gray-200 rounded-xl p-5 shadow-xs">
@@ -349,7 +373,7 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
             <Activity className="w-4 h-4 text-ve-blue" />
           </div>
           <div className="mt-2 text-2xl font-bold font-mono tabular-nums text-ve-gray-900">
-            {formatNumber(link.clickCount)}
+            <AnimatedNumber value={link.clickCount} showIncrease />
           </div>
           <p className="text-xs text-ve-gray-500 mt-1">Direct LAN redirects logged</p>
         </div>
@@ -459,3 +483,13 @@ export const LinkDetailsPage: React.FC<LinkDetailsPageProps> = ({
     </div>
   );
 };
+
+/** "https://hr.company.com/portal?x=1" -> "hr.company.com/portal" for the route strip. */
+function hostOf(url: string): string {
+  try {
+    const u = new URL(url.replace('%s', 'x'));
+    return `${u.host}${u.pathname === '/' ? '' : u.pathname.replace(/\/x$/, '')}`;
+  } catch {
+    return url;
+  }
+}

@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 
 /** "Live · updated 12s ago" with a Cyan pulse; the pulse is still with reduced motion (via CSS). */
-export const LiveIndicator: React.FC<{ lastUpdated: number | null; paused?: boolean }> = ({ lastUpdated, paused }) => {
+export const LiveIndicator: React.FC<{ lastUpdated: number | null; paused?: boolean; what?: string }> = ({
+  lastUpdated,
+  paused,
+  what = 'This page',
+}) => {
   const [, setNow] = useState(Date.now());
   useEffect(() => {
     const t = window.setInterval(() => setNow(Date.now()), 5000);
@@ -14,7 +18,7 @@ export const LiveIndicator: React.FC<{ lastUpdated: number | null; paused?: bool
   return (
     <span
       className="inline-flex items-center gap-2 h-7 px-2.5 rounded-full border border-ve-gray-200 bg-white text-xs text-ve-gray-600"
-      title="The dashboard refreshes itself every 20 seconds while it's open."
+      title={paused ? `${what} pauses while the tab is in the background.` : `${what} refreshes itself every 20 seconds while it's open.`}
     >
       <span className="relative flex w-2 h-2" aria-hidden="true">
         {!paused && <span className="ve-live-ping absolute inset-0 rounded-full bg-ve-cyan" />}

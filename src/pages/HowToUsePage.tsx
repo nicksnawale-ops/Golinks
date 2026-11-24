@@ -5,9 +5,7 @@ import {
   Bookmark,
   CheckCircle2,
   Compass,
-  CornerDownLeft,
   ExternalLink,
-  Globe,
   HelpCircle,
   Info,
   Lightbulb,
@@ -15,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { CopyButton } from '../components/CopyButton';
+import { TypingDemo } from '../components/live/TypingDemo';
 
 interface HowToUsePageProps {
   onNavigate: (page: string) => void;
@@ -65,16 +64,7 @@ export const HowToUsePage: React.FC<HowToUsePageProps> = ({ onNavigate, onResolv
           </div>
         </div>
 
-        <div className="p-4 bg-ve-navy text-white rounded-xl font-mono text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-ve-cyan" />
-            <span className="text-ve-cyan font-semibold">go/payroll</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-ve-gray-300">Press</span>
-            <kbd className="px-2 py-0.5 bg-white/10 border border-white/20 rounded-sm text-xs">Enter</kbd>
-          </div>
-        </div>
+        <TypingDemo />
       </section>
 
       {/* Step 2: The First Time Crucial Tip (http://go/name) */}

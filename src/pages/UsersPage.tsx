@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { KeyRound, Loader2, Shield, UserPlus, Users } from 'lucide-react';
+import { LiveIndicator } from '../components/live/LiveIndicator';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
+import { useNewItems } from '../components/live/useNewItems';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -42,6 +45,10 @@ export const UsersPage: React.FC = () => {
     if (isAdmin) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAdmin]);
+
+  // Sign-ins and accounts added by other admins show up without reloading.
+  const live = useLiveRefresh(isAdmin ? async () => setUsers(await listUsers()) : undefined);
+  const newIds = useNewItems<ManagedUser>(users, (u) => u.id, (u) => u.createdAt);
 
   if (!isAdmin) {
     return (
@@ -95,7 +102,10 @@ export const UsersPage: React.FC = () => {
           <h1 className="text-ve-gray-900 flex items-center gap-2 text-3xl font-semibold">
             <Users className="w-6 h-6 text-ve-blue" /> Users
           </h1>
-          <p className="text-sm text-ve-gray-500 mt-1">
+          <div className="mt-2">
+            <LiveIndicator lastUpdated={live.lastUpdated} paused={live.paused} what="This list" />
+          </div>
+          <p className="text-sm text-ve-gray-500 mt-2">
             Who can sign in, and who can administer GoLinks. Deactivating someone signs them out immediately; their
             links keep working.
           </p>
@@ -193,7 +203,7 @@ export const UsersPage: React.FC = () => {
                 const isSelf = u.id === currentUser?.id;
                 const busy = busyId === u.id;
                 return (
-                  <tr key={u.id} className={u.isActive ? '' : 'opacity-60'}>
+                  <tr key={u.id} className={`${u.isActive ? '' : 'opacity-60'} ${newIds.has(u.id) ? 've-row-new' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="font-semibold text-ve-gray-900 flex items-center gap-1.5">
                         {u.name}
@@ -227,7 +237,15 @@ export const UsersPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs text-ve-gray-500">
-                      {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : 'Never'}
+                      <span className="inline-flex items-center gap-1.5">
+                        {u.isActive && signedInRecently(u.lastLoginAt) && (
+                          <span className="relative flex w-2 h-2" title="Signed in within the last 15 minutes">
+                            <span className="ve-live-ping absolute inset-0 rounded-full bg-ve-cyan" />
+                            <span className="relative w-2 h-2 rounded-full bg-ve-cyan" />
+                          </span>
+                        )}
+                        {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : 'Never'}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
@@ -272,3 +290,10 @@ export const UsersPage: React.FC = () => {
     </div>
   );
 };
+
+const RECENT_MS = 15 * 60 * 1000;
+function signedInRecently(lastLoginAt: string | null): boolean {
+  if (!lastLoginAt) return false;
+  const t = Date.parse(lastLoginAt);
+  return Number.isFinite(t) && Date.now() - t < RECENT_MS;
+}

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   AlertCircle,
-  ArrowRight,
   Check,
   CheckCircle2,
   ExternalLink,
@@ -20,6 +19,7 @@ import {
 } from '../services/linkService';
 import { CreateLinkInput, GoLink, LinkVisibility, UpdateLinkInput } from '../types/link';
 import { useAuth } from '../context/AuthContext';
+import { RoutePulse } from './live/RoutePulse';
 
 interface LinkFormProps {
   initialValues?: Partial<GoLink>;
@@ -166,6 +166,8 @@ export const LinkForm: React.FC<LinkFormProps> = ({
   };
 
   const normalizedPreview = normalizeShortName(shortName) || 'shortcut';
+  // The preview route lights up once both halves would be accepted.
+  const previewReady = !!normalizeShortName(shortName) && !!targetUrl.trim() && validateTargetUrl(targetUrl.trim()).valid && !shortNameError;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -179,15 +181,16 @@ export const LinkForm: React.FC<LinkFormProps> = ({
       {/* Live preview: dark Deep Navy surface, Cyan accent (allowed on dark per UDS) */}
       <div className="bg-ve-navy text-white rounded-xl p-5">
         <div className="text-[11px] leading-4 font-medium uppercase tracking-[0.08em] text-ve-gray-300">Preview</div>
-        <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 font-mono text-[13px] sm:text-sm">
-          <div className="font-semibold text-ve-cyan bg-white/10 px-2.5 py-1 rounded-md border border-white/15 truncate">
-            go/{normalizedPreview}
-          </div>
-          <ArrowRight className="w-4 h-4 text-ve-gray-300 hidden sm:block shrink-0" />
-          <div className="text-white/90 bg-white/10 px-2.5 py-1 rounded-md border border-white/15 truncate flex-1">
-            {targetUrl ? targetUrl : 'https://...'}
-          </div>
-        </div>
+        <RoutePulse
+          tone="dark"
+          className="mt-3"
+          from={`go/${normalizedPreview}`}
+          to={targetUrl ? targetUrl : 'https://...'}
+          active={previewReady}
+        />
+        <p className="mt-2 text-xs text-ve-gray-300" aria-live="polite">
+          {previewReady ? 'Ready: this is where the link will send people.' : 'Add a short name and a valid destination to see the route.'}
+        </p>
         {targetUrl.includes('%s') && (
           <p className="text-xs text-ve-gray-300 mt-2 font-mono">
             go/{normalizedPreview}/1234 will open {targetUrl.replace('%s', '1234')}

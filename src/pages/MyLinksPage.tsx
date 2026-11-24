@@ -19,9 +19,13 @@ import { CopyButton } from '../components/CopyButton';
 import { DeactivateConfirmModal } from '../components/DeactivateConfirmModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { QuickQRModal } from '../components/QuickQRModal';
+import { AnimatedNumber } from '../components/live/AnimatedNumber';
+import { LiveIndicator } from '../components/live/LiveIndicator';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
+import { useNewItems } from '../components/live/useNewItems';
 import { useAuth } from '../context/AuthContext';
 import { GoLink } from '../types/link';
-import { formatNumber, formatRelativeTime } from '../utils/formatters';
+import { formatRelativeTime } from '../utils/formatters';
 import { getLinkHealth } from '../utils/linkHealth';
 
 interface MyLinksPageProps {
@@ -30,6 +34,8 @@ interface MyLinksPageProps {
   onDelete: (id: string) => Promise<boolean>;
   onToggleActive: (id: string, currentState: boolean) => Promise<GoLink>;
   onResolve: (path: string) => void;
+  /** Background re-fetch; when given, the page updates itself while open. */
+  onRefresh?: () => Promise<void>;
 }
 
 export const MyLinksPage: React.FC<MyLinksPageProps> = ({
@@ -38,8 +44,10 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
   onDelete,
   onToggleActive,
   onResolve,
+  onRefresh,
 }) => {
   const { currentUser, isAdmin } = useAuth();
+  const live = useLiveRefresh(onRefresh);
   const [search, setSearch] = useState('');
   const [deleteModalLink, setDeleteModalLink] = useState<GoLink | null>(null);
   const [deactivateModalLink, setDeactivateModalLink] = useState<GoLink | null>(null);
@@ -83,6 +91,7 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
     }
   };
 
+  const newIds = useNewItems(myLinks, (l) => l.id, (l) => l.createdAt);
   const totalClicks = myLinks.reduce((sum, l) => sum + l.clickCount, 0);
   const staleCount = myLinks.filter((l) => getLinkHealth(l).isStale).length;
 
@@ -107,6 +116,11 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
               My Created GoLinks
             </h1>
           </div>
+          {onRefresh && (
+            <div className="mt-2">
+              <LiveIndicator lastUpdated={live.lastUpdated} paused={live.paused} what="This page" />
+            </div>
+          )}
           <p className="text-xs text-ve-gray-500 mt-1">
             Shortcuts registered and managed by <strong className="text-ve-gray-800">{currentUser?.email}</strong>.
           </p>
@@ -126,16 +140,16 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white border border-ve-gray-200 rounded-xl p-4 shadow-xs">
           <div className="text-xs font-medium text-ve-gray-500">My Shortcuts</div>
-          <div className="mt-1 text-2xl font-bold font-mono text-ve-gray-900">
-            {myLinks.length}
+          <div className="mt-1 text-2xl font-bold font-mono tabular-nums text-ve-gray-900">
+            <AnimatedNumber value={myLinks.length} showIncrease />
           </div>
           <p className="text-[11px] text-ve-gray-400 mt-0.5">Active ownership</p>
         </div>
 
         <div className="bg-white border border-ve-gray-200 rounded-xl p-4 shadow-xs">
           <div className="text-xs font-medium text-ve-gray-500">Cumulative Clicks</div>
-          <div className="mt-1 text-2xl font-bold font-mono text-ve-gray-900">
-            {formatNumber(totalClicks)}
+          <div className="mt-1 text-2xl font-bold font-mono tabular-nums text-ve-gray-900">
+            <AnimatedNumber value={totalClicks} showIncrease />
           </div>
           <p className="text-[11px] text-ve-gray-400 mt-0.5">LAN employee visits</p>
         </div>
@@ -214,7 +228,7 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
                     <tr
                       key={link.id}
                       onClick={() => onNavigate('details', { id: link.id })}
-                      className="hover:bg-ve-gray-50/80 transition-colors cursor-pointer group"
+                      className={`hover:bg-ve-gray-50/80 transition-colors cursor-pointer group ${newIds.has(link.id) ? 've-row-new' : ''}`}
                     >
                       <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
                         <div className="flex items-center gap-2">
@@ -266,7 +280,7 @@ export const MyLinksPage: React.FC<MyLinksPageProps> = ({
                       </td>
 
                       <td className="py-3.5 px-4 text-right font-mono tabular-nums font-semibold text-ve-gray-900 whitespace-nowrap">
-                        {formatNumber(link.clickCount)}
+                        <AnimatedNumber value={link.clickCount} countUpOnMount={false} showIncrease />
                       </td>
 
                       <td className="py-3.5 px-4 text-right text-xs text-ve-gray-500 whitespace-nowrap">

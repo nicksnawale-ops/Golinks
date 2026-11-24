@@ -25,11 +25,15 @@ import { CsvImportModal } from '../components/CsvImportModal';
 import { DeactivateConfirmModal } from '../components/DeactivateConfirmModal';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { QuickQRModal } from '../components/QuickQRModal';
+import { AnimatedNumber } from '../components/live/AnimatedNumber';
+import { LiveIndicator } from '../components/live/LiveIndicator';
+import { useLiveRefresh } from '../components/live/useLiveRefresh';
+import { useNewItems } from '../components/live/useNewItems';
 import { useAuth } from '../context/AuthContext';
 import { canUserManageLink } from '../services/authService';
 import { downloadCsvFile, exportLinksToCsv } from '../services/csvService';
 import { GoLink, SortField, ViewMode } from '../types/link';
-import { formatNumber, formatRelativeTime, truncateUrl } from '../utils/formatters';
+import { formatRelativeTime, truncateUrl } from '../utils/formatters';
 import { getLinkHealth } from '../utils/linkHealth';
 
 interface DirectoryPageProps {
@@ -57,6 +61,8 @@ interface DirectoryPageProps {
       category: string;
     }>
   ) => Promise<number>;
+  /** Background re-fetch; when given, the directory updates itself while open. */
+  onRefresh?: () => Promise<void>;
 }
 
 export const DirectoryPage: React.FC<DirectoryPageProps> = ({
@@ -70,8 +76,11 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
   onToggleActive,
   onResolve,
   onBulkImport,
+  onRefresh,
 }) => {
   const { currentUser, isAdmin } = useAuth();
+  const live = useLiveRefresh(onRefresh);
+  const newIds = useNewItems(links, (l) => l.id, (l) => l.createdAt);
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const hasActiveFilters =
     (!!filters.category && filters.category !== 'All') || filters.status !== 'all' || (!!filters.visibility && filters.visibility !== 'all');
@@ -112,7 +121,10 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Page header (UDS: one H1 per page) */}
       <header>
-        <h1 className="text-3xl font-semibold text-ve-gray-900">Directory</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold text-ve-gray-900">Directory</h1>
+          {onRefresh && <LiveIndicator lastUpdated={live.lastUpdated} paused={live.paused} what="The directory" />}
+        </div>
         <p className="mt-1 text-sm text-ve-gray-600">
           Every go link in your company. Open one from the search bar above, or type{' '}
           <code className="font-mono text-[13px] font-medium text-ve-gray-900">go/name</code> in your browser.
@@ -319,7 +331,7 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
                   return (
                     <tr
                       key={link.id}
-                      className="hover:bg-ve-gray-50/70 transition-colors group cursor-pointer"
+                      className={`hover:bg-ve-gray-50/70 transition-colors group cursor-pointer ${newIds.has(link.id) ? 've-row-new' : ''}`}
                       onClick={() => onNavigate('details', { id: link.id })}
                     >
                       {/* Short Link */}
@@ -392,7 +404,7 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
 
                       {/* Clicks */}
                       <td className="py-3.5 px-4 align-middle text-right font-mono tabular-nums text-ve-gray-900 font-medium whitespace-nowrap">
-                        {formatNumber(link.clickCount)}
+                        <AnimatedNumber value={link.clickCount} countUpOnMount={false} showIncrease />
                       </td>
 
                       {/* Last Accessed */}
@@ -484,7 +496,7 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
               <div
                 key={link.id}
                 onClick={() => onNavigate('details', { id: link.id })}
-                className="bg-white border border-ve-gray-200 rounded-xl p-5 hover:border-ve-gray-300 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+                className={`bg-white border border-ve-gray-200 rounded-xl p-5 hover:border-ve-gray-300 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between ${newIds.has(link.id) ? 've-row-new' : ''}`}
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
@@ -523,7 +535,7 @@ export const DirectoryPage: React.FC<DirectoryPageProps> = ({
                     <span>{link.owner.split('@')[0]}</span>
                   </div>
                   <div className="font-mono tabular-nums font-semibold text-ve-gray-800">
-                    {formatNumber(link.clickCount)} clicks
+                    <AnimatedNumber value={link.clickCount} countUpOnMount={false} showIncrease /> clicks
                   </div>
                 </div>
               </div>
