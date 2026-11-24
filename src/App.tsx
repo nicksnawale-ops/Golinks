@@ -30,6 +30,7 @@ function GoLinksApp() {
     remove,
     toggleActive,
     bulkImport,
+    refreshQuietly,
   } = useGoLinks();
 
   const { showToast } = useToast();
@@ -188,6 +189,7 @@ function GoLinksApp() {
             onToggleActive={toggleActive}
             onResolve={handleResolvePath}
             onOpenCsvImport={() => setIsCsvModalOpen(true)}
+            onRefresh={refreshQuietly}
           />
         )}
 

@@ -33,9 +33,9 @@ export function useGoLinks() {
     status: 'all',
   });
 
-  const fetchLinks = useCallback(async () => {
+  const fetchLinks = useCallback(async (options: { silent?: boolean } = {}) => {
     try {
-      setLoading(true);
+      if (!options.silent) setLoading(true);
       setError(null);
       const activeParam =
         filters.status === 'active' ? true : filters.status === 'inactive' ? false : undefined;
@@ -56,9 +56,9 @@ export function useGoLinks() {
       setCategories(cats);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to load links';
-      setError(msg);
+      if (!options.silent) setError(msg); // a failed background refresh keeps the current data
     } finally {
-      setLoading(false);
+      if (!options.silent) setLoading(false);
     }
   }, [filters]);
 
@@ -117,7 +117,9 @@ export function useGoLinks() {
     filters,
     setFilterValue,
     setFilters,
-    refresh: fetchLinks,
+    refresh: () => fetchLinks(),
+    /** Re-fetches in the background without loading states (used for the live dashboard). */
+    refreshQuietly: () => fetchLinks({ silent: true }),
     create: handleCreate,
     update: handleUpdate,
     remove: handleDelete,
